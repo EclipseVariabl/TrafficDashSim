@@ -3,439 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tyler, TX Ops Simulation - v3.1</title>
+    <title>Tyler, TX Traffic Operations Dashboard</title>
     
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
         :root {
-            --bg-dark: #1a1a1d;
-            --panel-bg: #252529;
-            --text-main: #e0e0e0;
-            --accent: #4a90e2;
-            --danger: #e74c3c;
-            --warning: #f1c40f;
-            --success: #2ecc71;
-            --header-height: 60px;
+            --bg-dark: #0f0f12;
+            --panel-bg: #1c1c21;
+            --header-bg: #131317;
+            --text: #ececec;
+            --accent: #3b82f6;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
         }
 
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-dark); color: var(--text-main); overflow: hidden; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg-dark); color: var(--text); overflow: hidden; }
 
-        /* Layout */
-        #app-container { display: flex; height: 100vh; flex-direction: column; }
-        
-        /* Header */
+        #dashboard { display: flex; flex-direction: column; height: 100vh; }
+
         header {
-            height: var(--header-height);
-            background-color: var(--panel-bg);
-            border-bottom: 1px solid #333;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            justify-content: space-between;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            z-index: 1000;
+            height: 60px; background: var(--header-bg); border-bottom: 1px solid #333;
+            display: flex; align-items: center; padding: 0 20px; justify-content: space-between; z-index: 1000;
         }
 
-        .brand { font-size: 1.2rem; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
-        .brand span { color: #fff; }
-        
-        /* Filters */
-        .controls { display: flex; gap: 10px; }
+        .brand { font-weight: 800; font-size: 1.2rem; color: var(--accent); }
+        .brand span { color: #fff; font-weight: 300; margin-left: 5px; }
+
+        .filters { display: flex; gap: 8px; }
         .filter-btn {
-            background: #333; border: 1px solid #444; color: #aaa;
-            padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
-            transition: all 0.2s;
+            background: #2a2a30; border: 1px solid #444; color: #999;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+            transition: 0.2s;
         }
-        .filter-btn:hover { background: #444; }
         .filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
-        /* Main Content */
-        #main-view { display: flex; flex: 1; position: relative; }
+        #main { display: flex; flex: 1; position: relative; }
+        #map { flex: 1; background: #000; }
 
-        /* Map */
-        #map { flex: 1; background: #111; z-index: 1; }
-
-        /* Side Panel (Reports) */
-        #side-panel {
-            width: 350px;
-            background: var(--panel-bg);
-            border-left: 1px solid #333;
-            display: flex;
-            flex-direction: column;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
-            z-index: 2;
+        #sidebar {
+            width: 360px; background: var(--panel-bg); border-left: 1px solid #333;
+            display: flex; flex-direction: column; z-index: 2000;
         }
 
-        .panel-header { padding: 15px; background: #2c2c30; border-bottom: 1px solid #333; font-weight: 600; display: flex; justify-content: space-between; }
-        .live-indicator { color: var(--danger); font-size: 0.8rem; animation: pulse 1.5s infinite; }
+        .sidebar-header { padding: 15px; border-bottom: 1px solid #333; font-weight: 600; font-size: 0.9rem; display: flex; justify-content: space-between; }
+        .status-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; display: inline-block; margin-right: 5px; animation: blink 1.5s infinite; }
 
-        #feed-container { flex: 1; overflow-y: auto; padding: 10px; }
+        #alert-feed { flex: 1; overflow-y: auto; padding: 12px; }
         
-        /* Feed Items */
-        .feed-item {
-            background: #2e2e33; border-left: 4px solid #555;
-            padding: 12px; margin-bottom: 10px; border-radius: 0 4px 4px 0;
-            font-size: 0.9rem; transition: transform 0.2s;
-            display: block; /* Default visible */
+        .alert-card {
+            background: #26262e; border-left: 4px solid #444; padding: 15px; margin-bottom: 12px;
+            border-radius: 0 8px 8px 0; font-size: 0.85rem;
         }
-        .feed-item.hidden { display: none; }
-        .feed-item:hover { background: #35353a; transform: translateX(2px); }
-        .feed-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem; color: #888; }
-        .feed-street { font-weight: bold; color: #fff; margin-bottom: 4px; }
-        .feed-detail { font-size: 0.85rem; color: #ccc; }
-        .feed-tags { margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap; }
-        .tag { font-size: 0.7rem; padding: 2px 6px; border-radius: 3px; background: #444; color: #ccc; }
-        
-        /* Severity Colors */
-        .sev-low { border-left-color: var(--success); }
-        .sev-med { border-left-color: var(--warning); }
-        .sev-high { border-left-color: var(--danger); }
+        .alert-card.high { border-left-color: var(--danger); }
+        .alert-card.med { border-left-color: var(--warning); }
+        .alert-card.low { border-left-color: var(--success); }
+        .alert-card.hidden { display: none; }
 
-        /* Map Legend */
-        .map-overlay {
-            position: absolute; bottom: 20px; left: 20px;
-            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px;
-            z-index: 1000; font-size: 0.8rem; pointer-events: none;
-        }
-        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
-        .color-box { width: 12px; height: 12px; margin-right: 8px; border-radius: 2px; }
+        .card-meta { display: flex; justify-content: space-between; color: #777; font-size: 0.75rem; margin-bottom: 5px; }
+        .card-title { font-weight: 700; color: #fff; margin-bottom: 3px; }
+        .card-dept { margin-top: 10px; display: flex; gap: 4px; }
+        .dept-tag { font-size: 0.65rem; background: #3b3b45; padding: 2px 6px; border-radius: 4px; color: #aaa; }
 
-        /* Alert Marker CSS Icon */
-        .alert-marker {
-            display: flex; justify-content: center; align-items: center;
-            border-radius: 50%;
-            color: white; font-size: 14px;
-            box-shadow: 0 0 0 rgba(255, 255, 255, 0.4);
-            animation: pulse-marker 2s infinite;
-        }
-        /* Department Specific Marker Colors */
-        .marker-PD { background: #3498db; border: 2px solid #2980b9; }
-        .marker-FIRE { background: #e74c3c; border: 2px solid #c0392b; }
-        .marker-ENG { background: #f39c12; border: 2px solid #d35400; }
-        .marker-STREETS { background: #9b59b6; border: 2px solid #8e44ad; }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        @keyframes pulse-marker { 
-            0% { box-shadow: 0 0 0 0px rgba(255,255,255, 0.7); transform: scale(1); }
-            70% { box-shadow: 0 0 0 10px rgba(255,255,255, 0); transform: scale(1.1); }
-            100% { box-shadow: 0 0 0 0px rgba(255,255,255, 0); transform: scale(1); }
+        /* Map Marker Styles */
+        .waze-marker {
+            width: 30px; height: 30px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 16px;
+            border: 2px solid white; box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #222; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
     </style>
 </head>
 <body>
 
-<div id="app-container">
+<div id="dashboard">
     <header>
-        <div class="brand">TYLER<span>SIM</span> <small style="font-size:0.7em; opacity:0.6; font-weight:normal;">/ TRAFFIC OPS</small></div>
-        <div class="controls">
-            <button class="filter-btn active" onclick="setFilter('all')">All</button>
-            <button class="filter-btn" onclick="setFilter('PD')">Police</button>
-            <button class="filter-btn" onclick="setFilter('FIRE')">Fire</button>
-            <button class="filter-btn" onclick="setFilter('ENG')">Engineering</button>
-            <button class="filter-btn" onclick="setFilter('STREETS')">Streets</button>
+        <div class="brand">TYLER<span>TRAFFIC_OPS</span></div>
+        <div class="filters">
+            <button class="filter-btn active" onclick="updateFilter('ALL')">All Reports</button>
+            <button class="filter-btn" onclick="updateFilter('PD')">Police</button>
+            <button class="filter-btn" onclick="updateFilter('FIRE')">Fire</button>
+            <button class="filter-btn" onclick="updateFilter('ENG')">Engineering</button>
         </div>
     </header>
 
-    <div id="main-view">
+    <div id="main">
         <div id="map"></div>
-        
-        <div class="map-overlay">
-            <div class="legend-item"><div class="color-box" style="background:#2ecc71"></div> Free Flow</div>
-            <div class="legend-item"><div class="color-box" style="background:#f1c40f"></div> Moderate</div>
-            <div class="legend-item"><div class="color-box" style="background:#e74c3c"></div> Heavy</div>
-            <div class="legend-item"><div class="color-box" style="background:#8e44ad"></div> Gridlock</div>
-            <div class="legend-item"><div class="color-box" style="background:rgba(52, 152, 219, 0.4); border:1px solid cyan"></div> NWS Weather</div>
-        </div>
-
-        <div id="side-panel">
-            <div class="panel-header">
-                <span>Alert Feed</span>
-                <span class="live-indicator">● LIVE</span>
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <span>ACTIVE INCIDENTS</span>
+                <span><span class="status-dot"></span>90S CYCLE</span>
             </div>
-            <div id="feed-container">
-                </div>
+            <div id="alert-feed"></div>
         </div>
     </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --- 1. CONFIGURATION ---
-    const TYLER_CENTER = [32.3513, -95.3011];
-    const UPDATE_INTERVAL = 1500; 
+    // --- Simulation Constants ---
+    const UPDATE_TIME = 90000; // 1.5 minutes
+    const TYLER_COORDS = [32.3513, -95.3011];
+    
+    let map, roadLayers = [], alerts = [], currentFilter = 'ALL';
 
-    // Departments Logic: Now tied to incident types, not roads.
-    const INCIDENT_TYPES = [
-        { name: "Major Accident", icon: "💥", depts: ['PD', 'FIRE', 'ENG'], severity: 'high' },
-        { name: "Minor Accident", icon: "🚗", depts: ['PD'], severity: 'med' },
-        { name: "Debris on Road", icon: "⚠️", depts: ['STREETS'], severity: 'low' },
-        { name: "Signal Malfunction", icon: "🚦", depts: ['ENG', 'PD'], severity: 'med' },
-        { name: "Stalled Vehicle", icon: "🛑", depts: ['PD', 'TRAFFIC'], severity: 'low' },
-        { name: "Structure Fire", icon: "🔥", depts: ['FIRE', 'PD'], severity: 'high' }
+    // --- Precise Road Definitions (Tyler Arteries) ---
+    const ROAD_DATA = [
+        { name: "Loop 323 North", path: [[32.384, -95.341], [32.384, -95.260]], speed: 50 },
+        { name: "Loop 323 South", path: [[32.308, -95.340], [32.308, -95.260]], speed: 50 },
+        { name: "Loop 323 West", path: [[32.384, -95.341], [32.308, -95.340]], speed: 50 },
+        { name: "Loop 323 East", path: [[32.384, -95.260], [32.308, -95.260]], speed: 50 },
+        { name: "Broadway Ave (S)", path: [[32.351, -95.301], [32.280, -95.301]], speed: 40 },
+        { name: "Broadway Ave (N)", path: [[32.351, -95.301], [32.410, -95.301]], speed: 40 },
+        { name: "Front St (HWY 31 W)", path: [[32.351, -95.301], [32.351, -95.380]], speed: 45 },
+        { name: "Front St (HWY 31 E)", path: [[32.351, -95.301], [32.351, -95.220]], speed: 45 },
+        { name: "Troup Hwy", path: [[32.340, -95.280], [32.280, -95.230]], speed: 45 },
+        { name: "Old Jacksonville Hwy", path: [[32.330, -95.310], [32.260, -95.350]], speed: 50 },
+        { name: "Gentry Pkwy", path: [[32.360, -95.300], [32.400, -95.330]], speed: 40 },
+        { name: "Grande Blvd", path: [[32.280, -95.350], [32.280, -95.250]], speed: 45 }
     ];
 
-    // State
-    let map;
-    let roadLayers = []; 
-    let activeAlerts = []; // Stores objects { id, marker, depts, domElement }
-    let weatherSystems = [];
-    let activeFilter = 'all';
-    let simulationTick = 0;
+    const INCIDENT_TEMPLATES = [
+        { type: "Vehicle Accident", icon: "💥", depts: ["PD", "FIRE"], sev: "high" },
+        { type: "Heavy Congestion", icon: "🛑", depts: ["ENG"], sev: "med" },
+        { type: "Road Hazard", icon: "⚠️", depts: ["PD", "ENG"], sev: "med" },
+        { type: "Stalled Vehicle", icon: "🚗", depts: ["PD"], sev: "low" },
+        { type: "Signal Malfunction", icon: "🚦", depts: ["ENG"], sev: "high" }
+    ];
 
-    // --- 2. GEOMETRY (The Anchors) ---
-    const ANCHORS = {
-        DOWNTOWN: [32.3513, -95.3011],
-        N_LOOP:   [32.4025, -95.3000], 
-        S_LOOP:   [32.3055, -95.3020], 
-        E_LOOP:   [32.3500, -95.2310], 
-        W_LOOP:   [32.3520, -95.3700], 
-        SE_LOOP:  [32.3160, -95.2510], 
-        SW_LOOP:  [32.3150, -95.3500], 
-        NE_LOOP:  [32.3850, -95.2500],
-        NW_LOOP:  [32.3850, -95.3500]
-    };
+    // --- Core Logic ---
 
-    function generateDensifiedPath(start, end, segments) {
-        const path = [];
-        for (let i = 0; i <= segments; i++) {
-            const t = i / segments;
-            const lat = start[0] + (end[0] - start[0]) * t;
-            const lng = start[1] + (end[1] - start[1]) * t;
-            path.push([lat, lng]);
-        }
-        return path;
-    }
+    function init() {
+        map = L.map('map', { zoomControl: false, center: TYLER_COORDS, zoom: 12 });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- 3. INIT ---
-    function initMap() {
-        map = L.map('map', {
-            center: TYLER_CENTER,
-            zoom: 12,
-            minZoom: 11,
-            zoomControl: false,
-            attributionControl: false
+        ROAD_DATA.forEach(data => {
+            const poly = L.polyline(data.path, { color: '#10b981', weight: 6, opacity: 0.7 }).addTo(map);
+            poly.bindPopup(`<b>${data.name}</b><br>Speed: ${data.speed} MPH`);
+            roadLayers.push({ ...data, layer: poly });
         });
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            maxZoom: 19
-        }).addTo(map);
-        L.control.zoom({ position: 'topright' }).addTo(map);
-
-        generateRoadNetwork();
-        initWeather();
-        
-        // Start Loops
-        updateSimulation();
-        setInterval(updateSimulation, UPDATE_INTERVAL);
+        // Initial simulation run
+        runSimulationTick();
+        setInterval(runSimulationTick, UPDATE_TIME);
     }
 
-    function generateRoadNetwork() {
-        // Loop 323 Ring
-        const loopAnchors = [ANCHORS.N_LOOP, ANCHORS.NE_LOOP, ANCHORS.E_LOOP, ANCHORS.SE_LOOP, ANCHORS.S_LOOP, ANCHORS.SW_LOOP, ANCHORS.W_LOOP, ANCHORS.NW_LOOP, ANCHORS.N_LOOP];
-        for(let i=0; i<loopAnchors.length-1; i++) {
-            createRoadEntity("Loop 323", generateDensifiedPath(loopAnchors[i], loopAnchors[i+1], 8), 55);
-        }
-
-        // Arteries
-        createRoadEntity("N Broadway Ave", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.N_LOOP, 10), 40);
-        createRoadEntity("S Broadway Ave", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.S_LOOP, 15), 45);
-        createRoadEntity("E Front St (SH-31)", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.E_LOOP, 12), 45);
-        createRoadEntity("W Front St (SH-31)", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.W_LOOP, 12), 50);
-        createRoadEntity("Troup Hwy", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.SE_LOOP, 10), 50);
-        createRoadEntity("Old Jacksonville", generateDensifiedPath([32.335, -95.3011], ANCHORS.SW_LOOP, 10), 50);
-        
-        // Grid
-        const grid = [[32.355, -95.305], [32.355, -95.297], [32.347, -95.297], [32.347, -95.305], [32.355, -95.305]];
-        createRoadEntity("Downtown Grid", grid, 30);
-    }
-
-    function createRoadEntity(name, coords, baseSpeed) {
-        // Roads are now department agnostic mostly, they just exist.
-        const roadObj = {
-            name: name,
-            coords: coords,
-            baseSpeed: baseSpeed,
-            currentSpeed: baseSpeed,
-            congestion: Math.random() * 0.1,
-            polyline: null
-        };
-
-        const line = L.polyline(coords, {
-            color: '#2ecc71', weight: 4, opacity: 0.8, lineCap: 'round', lineJoin: 'round'
-        }).addTo(map);
-
-        line.bindPopup(() => `<b>${name}</b><br>Speed: ${Math.round(roadObj.currentSpeed)} mph`);
-        
-        roadObj.polyline = line;
-        roadLayers.push(roadObj);
-    }
-
-    // --- 4. SIMULATION ---
-    function initWeather() {
-        for(let i=0; i<3; i++) {
-            const sys = {
-                center: [TYLER_CENTER[0] + (Math.random()-0.5)*0.1, TYLER_CENTER[1] + (Math.random()-0.5)*0.1],
-                drift: [(Math.random()-0.5)*0.002, (Math.random()-0.5)*0.002]
-            };
-            sys.layer = L.circle(sys.center, {
-                color: 'cyan', fillColor: '#3498db', fillOpacity: 0.15, radius: 2500, weight: 0
-            }).addTo(map);
-            weatherSystems.push(sys);
-        }
-    }
-
-    function updateSimulation() {
-        simulationTick++;
-        
-        // Move Weather
-        weatherSystems.forEach(w => {
-            w.center[0] += w.drift[0];
-            w.center[1] += w.drift[1];
-            if(Math.abs(w.center[0]-TYLER_CENTER[0]) > 0.15) w.drift[0] *= -1;
-            if(Math.abs(w.center[1]-TYLER_CENTER[1]) > 0.15) w.drift[1] *= -1;
-            w.layer.setLatLng(w.center);
-        });
-
-        // Update Roads
+    function runSimulationTick() {
+        // 1. Randomize Road Speeds
         roadLayers.forEach(road => {
-            let speedMod = 1.0;
-            // Weather Check
-            const mid = road.coords[Math.floor(road.coords.length/2)];
-            const inWeather = weatherSystems.some(w => Math.abs(mid[0]-w.center[0]) < 0.03 && Math.abs(mid[1]-w.center[1]) < 0.03);
-            if(inWeather) speedMod -= 0.3;
-
-            // Congestion Flux
-            if(Math.random() > 0.95) road.congestion = Math.min(1, road.congestion + 0.2);
-            else road.congestion = Math.max(0, road.congestion - 0.02);
-
-            road.currentSpeed = Math.max(5, road.baseSpeed * speedMod * (1 - road.congestion));
-            
-            // Color Update
-            const ratio = road.currentSpeed / road.baseSpeed;
-            let col = '#2ecc71';
-            if(ratio < 0.75) col = '#f1c40f';
-            if(ratio < 0.5) col = '#e74c3c';
-            if(ratio < 0.25) col = '#8e44ad';
-            
-            road.polyline.setStyle({ color: col });
+            const flow = Math.random();
+            let color = '#10b981'; // Green
+            if (flow < 0.2) color = '#ef4444'; // Red
+            else if (flow < 0.5) color = '#f59e0b'; // Orange
+            road.layer.setStyle({ color: color });
         });
 
-        // Generate Alert
-        if(simulationTick % 5 === 0 && Math.random() > 0.3) createAlert();
+        // 2. Clear old alerts (keep it clean)
+        if (alerts.length > 10) {
+            const old = alerts.shift();
+            map.removeLayer(old.marker);
+            old.element.remove();
+        }
+
+        // 3. Generate New Alert
+        generateAlert();
     }
 
-    // --- 5. ALERTS & FILTERING ---
-
-    function createAlert() {
-        // Pick a road
+    function generateAlert() {
         const road = roadLayers[Math.floor(Math.random() * roadLayers.length)];
-        // Pick an incident type
-        const type = INCIDENT_TYPES[Math.floor(Math.random() * INCIDENT_TYPES.length)];
+        const template = INCIDENT_TEMPLATES[Math.floor(Math.random() * INCIDENT_TEMPLATES.length)];
         
-        // Pick a point on that road
-        const idx = Math.floor(Math.random() * (road.coords.length - 1));
-        const lat = road.coords[idx][0];
-        const lng = road.coords[idx][1];
+        // Pick a random point on the road path
+        const point = road.path[0]; 
+        const offsetLat = (Math.random() - 0.5) * 0.005;
+        const offsetLng = (Math.random() - 0.5) * 0.005;
+        const finalPos = [point[0] + offsetLat, point[1] + offsetLng];
 
-        // Create Marker
-        // Primary Dept determines color
-        const mainDept = type.depts[0]; 
-        const iconDiv = L.divIcon({
-            className: `alert-marker marker-${mainDept}`,
-            iconSize: [30, 30],
-            html: type.icon
+        // Create Map Marker
+        const markerHtml = `<div class="waze-marker" style="background:${getSevColor(template.sev)}">${template.icon}</div>`;
+        const marker = L.marker(finalPos, {
+            icon: L.divIcon({ className: '', html: markerHtml, iconSize: [30, 30] })
         });
 
-        const marker = L.marker([lat, lng], {icon: iconDiv});
+        // Add to Map if Filter matches
+        if (currentFilter === 'ALL' || template.depts.includes(currentFilter)) {
+            marker.addTo(map);
+        }
+
+        // Create Sidebar Element
+        const card = document.createElement('div');
+        card.className = `alert-card ${template.sev}`;
+        if (currentFilter !== 'ALL' && !template.depts.includes(currentFilter)) card.classList.add('hidden');
         
-        // Add to Sidebar
-        const feedContainer = document.getElementById('feed-container');
-        const feedItem = document.createElement('div');
-        feedItem.className = `feed-item sev-${type.severity}`;
-        const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        
-        feedItem.innerHTML = `
-            <div class="feed-header"><span>${timeStr}</span><span>New Report</span></div>
-            <div class="feed-street">${type.icon} ${road.name}</div>
-            <div class="feed-detail">${type.name}</div>
-            <div class="feed-tags">
-                ${type.depts.map(d => `<span class="tag">${d}</span>`).join('')}
-            </div>
+        card.innerHTML = `
+            <div class="card-meta"><span>${new Date().toLocaleTimeString()}</span><span>${road.name}</span></div>
+            <div class="card-title">${template.icon} ${template.type}</div>
+            <div class="card-dept">${template.depts.map(d => `<span class="dept-tag">${d}</span>`).join('')}</div>
         `;
+        document.getElementById('alert-feed').prepend(card);
 
-        feedContainer.prepend(feedItem);
-        if(feedContainer.children.length > 15) feedContainer.removeChild(feedContainer.lastChild);
-
-        // Store Alert Object
-        const alertObj = {
-            id: Date.now() + Math.random(),
-            marker: marker,
-            depts: type.depts,
-            domItem: feedItem,
-            timestamp: Date.now()
-        };
-
-        activeAlerts.push(alertObj);
-        
-        // Add to map ONLY if filter matches
-        checkFilterAndDisplay(alertObj);
-
-        // Auto expire
-        setTimeout(() => removeAlert(alertObj), 30000);
+        alerts.push({ marker, depts: template.depts, element: card });
     }
 
-    function removeAlert(alertObj) {
-        if(map.hasLayer(alertObj.marker)) map.removeLayer(alertObj.marker);
-        if(alertObj.domItem.parentNode) alertObj.domItem.parentNode.removeChild(alertObj.domItem);
-        activeAlerts = activeAlerts.filter(a => a.id !== alertObj.id);
+    function getSevColor(sev) {
+        if (sev === 'high') return '#ef4444';
+        if (sev === 'med') return '#f59e0b';
+        return '#10b981';
     }
 
-    function setFilter(dept) {
-        activeFilter = dept;
+    function updateFilter(dept) {
+        currentFilter = dept;
         
-        // Update Buttons
+        // UI Button state
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            const txt = btn.innerText.toUpperCase();
-            if(txt === dept.toUpperCase() || (dept === 'all' && txt === 'ALL')) {
-                btn.classList.add('active');
+            btn.classList.toggle('active', btn.innerText.toUpperCase().includes(dept));
+        });
+
+        // Update Visibility of Markers and Cards
+        alerts.forEach(alert => {
+            const matches = (dept === 'ALL' || alert.depts.includes(dept));
+            
+            if (matches) {
+                if (!map.hasLayer(alert.marker)) alert.marker.addTo(map);
+                alert.element.classList.remove('hidden');
             } else {
-                btn.classList.remove('active');
+                if (map.hasLayer(alert.marker)) map.removeLayer(alert.marker);
+                alert.element.classList.add('hidden');
             }
         });
-
-        // Update Visibility
-        activeAlerts.forEach(alert => checkFilterAndDisplay(alert));
     }
 
-    function checkFilterAndDisplay(alert) {
-        // Logic: Show if filter is ALL or if alert's departments include the filter
-        const shouldShow = (activeFilter === 'all') || alert.depts.includes(activeFilter);
-
-        // Map Marker
-        if (shouldShow) {
-            if (!map.hasLayer(alert.marker)) alert.marker.addTo(map);
-        } else {
-            if (map.hasLayer(alert.marker)) map.removeLayer(alert.marker);
-        }
-
-        // Sidebar Item
-        if (shouldShow) {
-            alert.domItem.classList.remove('hidden');
-        } else {
-            alert.domItem.classList.add('hidden');
-        }
-    }
-
-    // Run
-    initMap();
-
+    window.onload = init;
 </script>
+
 </body>
 </html>
