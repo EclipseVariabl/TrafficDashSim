@@ -477,6 +477,45 @@
                 height: 40vh;
             }
         }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(229, 62, 62, 0.4);
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 4px 16px rgba(229, 62, 62, 0.8);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(229, 62, 62, 0.4);
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .report-card {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .stat-box {
+            transition: all 0.3s ease;
+        }
+
+        .stat-box:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(49, 130, 206, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -489,6 +528,7 @@
             </div>
         </div>
         <div class="controls">
+            <span id="next-update" style="color: #cbd5e0; font-size: 12px; padding: 8px 12px; background: rgba(255,255,255,0.1); border-radius: 4px;">Next update in: 3:00</span>
             <button class="btn btn-primary" id="regenBtn">🔄 Regenerate</button>
             <button class="btn btn-secondary" id="weatherBtn">🌤️ Weather</button>
         </div>
@@ -888,6 +928,190 @@
                     { geometry: [[32.3550, -95.3300], [32.3550, -95.3250]], speed: 40, departments: ["PD", "Traffic"] },
                     { geometry: [[32.3550, -95.3250], [32.3550, -95.3200]], speed: 40, departments: ["PD", "Traffic", "Engineering"] }
                 ]
+            },
+            // University Blvd
+            {
+                corridor: "University Blvd",
+                segments: [
+                    { geometry: [[32.3380, -95.3150], [32.3380, -95.3100]], speed: 35, departments: ["PD", "Traffic", "Fire"] },
+                    { geometry: [[32.3380, -95.3100], [32.3380, -95.3050]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3380, -95.3050], [32.3380, -95.3000]], speed: 35, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3380, -95.3000], [32.3380, -95.2950]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3380, -95.2950], [32.3380, -95.2900]], speed: 35, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // Donnybrook Ave
+            {
+                corridor: "Donnybrook Ave",
+                segments: [
+                    { geometry: [[32.3320, -95.3200], [32.3320, -95.3150]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3320, -95.3150], [32.3320, -95.3100]], speed: 35, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3320, -95.3100], [32.3320, -95.3050]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3320, -95.3050], [32.3320, -95.3000]], speed: 35, departments: ["PD", "Traffic", "Fire"] },
+                    { geometry: [[32.3320, -95.3000], [32.3320, -95.2950]], speed: 35, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // South Southeast Loop
+            {
+                corridor: "S Southeast Loop",
+                segments: [
+                    { geometry: [[32.3150, -95.2850], [32.3120, -95.2880]], speed: 50, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3120, -95.2880], [32.3090, -95.2910]], speed: 50, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3090, -95.2910], [32.3060, -95.2940]], speed: 50, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3060, -95.2940], [32.3030, -95.2970]], speed: 50, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Vine Avenue
+            {
+                corridor: "Vine Ave",
+                segments: [
+                    { geometry: [[32.3480, -95.3200], [32.3480, -95.3150]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3480, -95.3150], [32.3480, -95.3100]], speed: 30, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3480, -95.3100], [32.3480, -95.3050]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3480, -95.3050], [32.3480, -95.3000]], speed: 30, departments: ["PD", "Traffic", "Fire"] }
+                ]
+            },
+            // South Fleishel Avenue
+            {
+                corridor: "S Fleishel Ave",
+                segments: [
+                    { geometry: [[32.3250, -95.2950], [32.3220, -95.2950]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3220, -95.2950], [32.3190, -95.2950]], speed: 35, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3190, -95.2950], [32.3160, -95.2950]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3160, -95.2950], [32.3130, -95.2950]], speed: 35, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // Old Bullard Road
+            {
+                corridor: "Old Bullard Rd",
+                segments: [
+                    { geometry: [[32.3600, -95.3450], [32.3570, -95.3420]], speed: 45, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3570, -95.3420], [32.3540, -95.3390]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3540, -95.3390], [32.3510, -95.3360]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3510, -95.3360], [32.3480, -95.3330]], speed: 40, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3480, -95.3330], [32.3450, -95.3300]], speed: 40, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Shiloh Road
+            {
+                corridor: "Shiloh Rd",
+                segments: [
+                    { geometry: [[32.3700, -95.2600], [32.3670, -95.2630]], speed: 50, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3670, -95.2630], [32.3640, -95.2660]], speed: 50, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3640, -95.2660], [32.3610, -95.2690]], speed: 50, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3610, -95.2690], [32.3580, -95.2720]], speed: 50, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3580, -95.2720], [32.3550, -95.2750]], speed: 45, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // West Southwest Loop
+            {
+                corridor: "W Southwest Loop",
+                segments: [
+                    { geometry: [[32.3100, -95.3400], [32.3100, -95.3450]], speed: 55, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3100, -95.3450], [32.3100, -95.3500]], speed: 55, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3100, -95.3500], [32.3100, -95.3550]], speed: 55, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3100, -95.3550], [32.3100, -95.3600]], speed: 55, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Moore Road
+            {
+                corridor: "Moore Rd",
+                segments: [
+                    { geometry: [[32.3650, -95.3450], [32.3620, -95.3430]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3620, -95.3430], [32.3590, -95.3410]], speed: 40, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3590, -95.3410], [32.3560, -95.3390]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3560, -95.3390], [32.3530, -95.3370]], speed: 40, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // West Rieck Road
+            {
+                corridor: "W Rieck Rd",
+                segments: [
+                    { geometry: [[32.3280, -95.3500], [32.3280, -95.3450]], speed: 40, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3280, -95.3450], [32.3280, -95.3400]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3280, -95.3400], [32.3280, -95.3350]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3280, -95.3350], [32.3280, -95.3300]], speed: 40, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // South Bonner Avenue
+            {
+                corridor: "S Bonner Ave",
+                segments: [
+                    { geometry: [[32.3250, -95.3080], [32.3220, -95.3080]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3220, -95.3080], [32.3190, -95.3080]], speed: 35, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3190, -95.3080], [32.3160, -95.3080]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3160, -95.3080], [32.3130, -95.3080]], speed: 35, departments: ["PD", "Traffic", "Fire"] }
+                ]
+            },
+            // West Houston Street
+            {
+                corridor: "W Houston St",
+                segments: [
+                    { geometry: [[32.3500, -95.3150], [32.3500, -95.3120]], speed: 30, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3500, -95.3120], [32.3500, -95.3090]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3500, -95.3090], [32.3500, -95.3060]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3500, -95.3060], [32.3500, -95.3030]], speed: 30, departments: ["PD", "Traffic", "Fire"] }
+                ]
+            },
+            // East Houston Street
+            {
+                corridor: "E Houston St",
+                segments: [
+                    { geometry: [[32.3500, -95.3011], [32.3500, -95.2980]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3500, -95.2980], [32.3500, -95.2950]], speed: 30, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3500, -95.2950], [32.3500, -95.2920]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3500, -95.2920], [32.3500, -95.2890]], speed: 30, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // North Spring Avenue
+            {
+                corridor: "N Spring Ave",
+                segments: [
+                    { geometry: [[32.3650, -95.2970], [32.3620, -95.2970]], speed: 35, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3620, -95.2970], [32.3590, -95.2970]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3590, -95.2970], [32.3560, -95.2970]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3560, -95.2970], [32.3530, -95.2970]], speed: 35, departments: ["PD", "Traffic", "Fire"] }
+                ]
+            },
+            // Chandler Highway
+            {
+                corridor: "Chandler Hwy",
+                segments: [
+                    { geometry: [[32.3050, -95.3100], [32.3050, -95.3150]], speed: 50, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3050, -95.3150], [32.3050, -95.3200]], speed: 50, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3050, -95.3200], [32.3050, -95.3250]], speed: 50, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3050, -95.3250], [32.3050, -95.3300]], speed: 45, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // South Bois D'Arc Avenue
+            {
+                corridor: "S Bois D'Arc Ave",
+                segments: [
+                    { geometry: [[32.3260, -95.3150], [32.3230, -95.3150]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3230, -95.3150], [32.3200, -95.3150]], speed: 35, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3200, -95.3150], [32.3170, -95.3150]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3170, -95.3150], [32.3140, -95.3150]], speed: 35, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // Old Henderson Highway
+            {
+                corridor: "Old Henderson Hwy",
+                segments: [
+                    { geometry: [[32.3750, -95.2800], [32.3720, -95.2830]], speed: 50, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3720, -95.2830], [32.3690, -95.2860]], speed: 50, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3690, -95.2860], [32.3660, -95.2890]], speed: 50, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3660, -95.2890], [32.3630, -95.2920]], speed: 45, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Access Road (Loop 323)
+            {
+                corridor: "Loop 323 Access Rd",
+                segments: [
+                    { geometry: [[32.3200, -95.2700], [32.3180, -95.2730]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3180, -95.2730], [32.3160, -95.2760]], speed: 45, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3160, -95.2760], [32.3140, -95.2790]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3140, -95.2790], [32.3120, -95.2820]], speed: 45, departments: ["PD", "Traffic", "Engineering"] }
+                ]
             }
         ];
 
@@ -901,11 +1125,40 @@
                 impact: 'None',
                 speedModifier: 1.0
             },
-            weatherCircles: []
+            weatherCircles: [],
+            alertMarkers: []
         };
 
         let trafficLayers = [];
         let activeDepartments = new Set(['all']);
+
+        // Alert marker icons
+        const alertIcons = {
+            critical: L.divIcon({
+                className: 'custom-alert-marker',
+                html: '<div style="background: #e53e3e; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); animation: pulse 2s infinite;">⚠️</div>',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            }),
+            high: L.divIcon({
+                className: 'custom-alert-marker',
+                html: '<div style="background: #dd6b20; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">🚧</div>',
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            }),
+            medium: L.divIcon({
+                className: 'custom-alert-marker',
+                html: '<div style="background: #d69e2e; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">⚡</div>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            }),
+            low: L.divIcon({
+                className: 'custom-alert-marker',
+                html: '<div style="background: #38a169; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">ℹ️</div>',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            })
+        };
 
         // Weather conditions
         const weatherConditions = [
@@ -942,6 +1195,10 @@
 
         // Regenerate simulation
         function regenerateSimulation() {
+            // Clear old alert markers
+            simulationState.alertMarkers.forEach(marker => map.removeLayer(marker));
+            simulationState.alertMarkers = [];
+
             // Update weather randomly
             const weather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
             simulationState.weather = weather;
@@ -1094,6 +1351,10 @@
             const container = document.getElementById('reports-container');
             container.innerHTML = '';
 
+            // Clear old markers
+            simulationState.alertMarkers.forEach(marker => map.removeLayer(marker));
+            simulationState.alertMarkers = [];
+
             simulationState.reports.forEach(report => {
                 const card = document.createElement('div');
                 card.className = `report-card severity-${report.severity}`;
@@ -1117,10 +1378,51 @@
                 
                 card.addEventListener('click', () => {
                     const center = report.segment.geometry[Math.floor(report.segment.geometry.length / 2)];
-                    map.setView(center, 15);
+                    map.setView(center, 16);
                 });
                 
                 container.appendChild(card);
+
+                // Add marker to map
+                const markerPos = report.segment.geometry[Math.floor(report.segment.geometry.length / 2)];
+                const marker = L.marker(markerPos, {
+                    icon: alertIcons[report.severity]
+                }).addTo(map);
+
+                const popupContent = `
+                    <div class="popup-title" style="color: ${
+                        report.severity === 'critical' ? '#e53e3e' :
+                        report.severity === 'high' ? '#dd6b20' :
+                        report.severity === 'medium' ? '#d69e2e' : '#38a169'
+                    };">${report.cause}</div>
+                    <div class="popup-row">
+                        <span class="popup-label">Location:</span>
+                        <span class="popup-value">${report.corridor}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Impact:</span>
+                        <span class="popup-value">${report.impact}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Duration:</span>
+                        <span class="popup-value">${report.duration}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Severity:</span>
+                        <span class="popup-value" style="text-transform: capitalize;">${report.severity}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Departments:</span>
+                        <span class="popup-value">${report.departments.join(', ')}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Confidence:</span>
+                        <span class="popup-value">${(report.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+                simulationState.alertMarkers.push(marker);
             });
         }
 
@@ -1231,17 +1533,34 @@
         });
 
         // Event listeners
-        document.getElementById('regenBtn').addEventListener('click', regenerateSimulation);
+        document.getElementById('regenBtn').addEventListener('click', () => {
+            regenerateSimulation();
+            nextUpdateTime = Date.now() + updateInterval;
+        });
         document.getElementById('weatherBtn').addEventListener('click', () => {
             const weather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
             simulationState.weather = weather;
             regenerateSimulation();
+            nextUpdateTime = Date.now() + updateInterval;
         });
 
-        // Auto-update simulation every 30 seconds
+        // Auto-update simulation every 3 minutes
+        let updateInterval = 180000; // 3 minutes in ms
+        let nextUpdateTime = Date.now() + updateInterval;
+        
         setInterval(() => {
             regenerateSimulation();
-        }, 30000);
+            nextUpdateTime = Date.now() + updateInterval;
+        }, updateInterval);
+
+        // Update countdown timer every second
+        setInterval(() => {
+            const timeLeft = Math.max(0, nextUpdateTime - Date.now());
+            const minutes = Math.floor(timeLeft / 60000);
+            const seconds = Math.floor((timeLeft % 60000) / 1000);
+            document.getElementById('next-update').textContent = 
+                `Next update in: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }, 1000);
 
         // Initialize
         initializeSimulation();
