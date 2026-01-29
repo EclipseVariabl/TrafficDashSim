@@ -6,7 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 :root{
@@ -16,13 +15,27 @@
 }
 *{box-sizing:border-box;font-family:Segoe UI,Roboto,sans-serif}
 body{margin:0;background:var(--bg);color:var(--text)}
-header{padding:14px 22px;background:linear-gradient(90deg,#0b1220,#121a2f);
-display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f2a48}
+
+header{
+padding:14px 22px;
+background:linear-gradient(90deg,#0b1220,#121a2f);
+display:flex;justify-content:space-between;align-items:center;
+border-bottom:1px solid #1f2a48
+}
 header h1{margin:0;font-size:20px}
 header span{color:var(--accent)}
 
-.dashboard{display:grid;grid-template-columns:330px 1fr 380px;height:calc(100vh - 64px)}
-.panel{background:var(--panel);border-right:1px solid #1f2a48;padding:14px;overflow:auto}
+.dashboard{
+display:grid;
+grid-template-columns:320px 1fr 360px;
+height:calc(100vh - 64px)
+}
+.panel{
+background:var(--panel);
+border-right:1px solid #1f2a48;
+padding:14px;
+overflow:auto
+}
 .panel h2{font-size:15px;color:var(--accent);margin:10px 0}
 
 .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
@@ -30,23 +43,37 @@ header span{color:var(--accent)}
 .kpi h3{margin:0;font-size:12px;color:var(--muted)}
 .kpi p{margin:4px 0 0;font-size:18px}
 
-.toggle label{display:block;font-size:13px;margin-bottom:4px}
-.toggle input{margin-right:6px}
-
-.list-item{background:#0e1730;padding:10px;margin-bottom:8px;
-border-left:4px solid var(--accent);border-radius:6px;font-size:13px}
-.danger{border-color:var(--danger)}
-.warning{border-color:var(--warning)}
-
 #map{height:100%;width:100%}
 
-.insight{background:#0e1730;padding:10px;border-radius:6px;
-margin-bottom:8px;border-left:4px solid var(--success)}
+.legend{
+position:absolute;
+bottom:20px;
+left:20px;
+background:#0e1730;
+padding:10px;
+border-radius:6px;
+font-size:12px;
+line-height:1.6
+}
 
-canvas{background:#0e1730;border-radius:6px;padding:8px}
+.insight{
+background:#0e1730;
+padding:10px;
+border-radius:6px;
+margin-bottom:8px;
+border-left:4px solid var(--accent)
+}
 
-footer{position:fixed;bottom:0;left:0;right:0;background:#0e1730;
-padding:6px 14px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+footer{
+position:fixed;
+bottom:0;left:0;right:0;
+background:#0e1730;
+padding:6px 14px;
+font-size:12px;
+color:var(--muted);
+display:flex;
+justify-content:space-between
+}
 </style>
 </head>
 
@@ -54,45 +81,26 @@ padding:6px 14px;font-size:12px;color:var(--muted);display:flex;justify-content:
 
 <header>
 <h1>City of Tyler <span>Integrated Traffic Operations Center</span></h1>
-<div>
-Time Mode:
-<select id="timeMode">
-<option>Night</option>
-<option>AM Peak</option>
-<option>Midday</option>
-<option>PM Peak</option>
-</select>
-</div>
+<div>Primary Feed: Waze for Cities (Simulated)</div>
 </header>
 
 <div class="dashboard">
 
 <!-- LEFT -->
 <div class="panel">
-<h2>Citywide KPIs</h2>
+<h2>Waze-Derived KPIs</h2>
 <div class="kpis">
-<div class="kpi"><h3>Avg Speed</h3><p id="speed">32 mph</p></div>
-<div class="kpi"><h3>Delay Index</h3><p id="delay">1.31</p></div>
-<div class="kpi"><h3>Active Alerts</h3><p style="color:var(--danger)">14</p></div>
-<div class="kpi"><h3>Signal Health</h3><p style="color:var(--success)">88%</p></div>
+<div class="kpi"><h3>Active Waze Alerts</h3><p style="color:var(--danger)">12</p></div>
+<div class="kpi"><h3>Heavy Jams</h3><p>4</p></div>
+<div class="kpi"><h3>Crashes Reported</h3><p>3</p></div>
+<div class="kpi"><h3>Avg Speed</h3><p>31 mph</p></div>
 </div>
 
-<h2>Layer Controls</h2>
-<div class="toggle">
-<label><input type="checkbox" checked> Waze Traffic</label>
-<label><input type="checkbox" checked> PD</label>
-<label><input type="checkbox" checked> Fire</label>
-<label><input type="checkbox" checked> Traffic</label>
-<label><input type="checkbox" checked> Streets</label>
-<label><input type="checkbox" checked> Engineering</label>
-<label><input type="checkbox" checked> Weather (NWS)</label>
-<label><input type="checkbox" checked> TxDOT</label>
-</div>
-
-<h2>Active Alerts</h2>
-<div class="list-item danger"><strong>Crash – Broadway Ave</strong> PD & Fire responding</div>
-<div class="list-item warning"><strong>Heavy Rain</strong> Reduced visibility</div>
-<div class="list-item"><strong>Lane Closure – Loop 323</strong> TxDOT</div>
+<h2>Active Waze Alerts</h2>
+<div class="insight"><strong>ACCIDENT_MAJOR</strong> – Broadway Ave (7 reports)</div>
+<div class="insight"><strong>JAM_HEAVY</strong> – Loop 323 EB (11 reports)</div>
+<div class="insight"><strong>HAZARD_WEATHER</strong> – Standing water SH-155</div>
+<div class="insight"><strong>STOPPED_VEHICLE</strong> – Downtown arterial</div>
 </div>
 
 <!-- MAP -->
@@ -100,27 +108,23 @@ Time Mode:
 
 <!-- RIGHT -->
 <div class="panel">
-<h2>Operational Trends</h2>
-<canvas id="speedChart"></canvas>
-<canvas id="delayChart" style="margin-top:10px"></canvas>
-
-<h2>Department Insights</h2>
-<div class="insight"><strong>PD:</strong> Crash density elevated near UT Tyler</div>
-<div class="insight"><strong>Fire:</strong> Signal preemption effective on Broadway</div>
-<div class="insight"><strong>Traffic:</strong> PM timing plan active</div>
-<div class="insight"><strong>Streets:</strong> Rain increasing pothole reports</div>
-<div class="insight"><strong>Engineering:</strong> Corridor reliability trending down</div>
+<h2>Department Interpretation</h2>
+<div class="insight"><strong>PD:</strong> Responding to ACCIDENT_MAJOR on Broadway</div>
+<div class="insight"><strong>Fire:</strong> EMS dispatched based on Waze severity</div>
+<div class="insight"><strong>Traffic:</strong> JAM_HEAVY triggered timing adjustment</div>
+<div class="insight"><strong>Streets:</strong> HAZARD_WEATHER flagged for inspection</div>
+<div class="insight"><strong>Engineering:</strong> Recurrent JAM_MODERATE logged</div>
 
 <h2>AI City Advisor</h2>
-<div class="insight" style="border-color:var(--accent)">
-PM peak + rain detected. Recommend public advisory, extend green splits on arterials, and coordinate PD presence at crash-prone intersections.
+<div class="insight">
+Multiple Waze alerts on primary corridor indicate incident-driven congestion rather than demand-based slowdown. Prioritize clearance.
 </div>
 </div>
 
 </div>
 
 <footer>
-<div>Simulated Feeds: Waze • NWS/NOAA • TxDOT • City of Tyler</div>
+<div>Waze Alerts → City Interpretation → Department Action</div>
 <div id="clock"></div>
 </footer>
 
@@ -129,41 +133,81 @@ PM peak + rain detected. Recommend public advisory, extend green splits on arter
 const map=L.map('map').setView([32.3513,-95.3011],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
-/* Waze-style jam lines */
-const jams=[
-[[32.34,-95.29],[32.36,-95.31]],
-[[32.33,-95.30],[32.35,-95.32]]
-];
-jams.forEach(j=>{
-L.polyline(j,{color:'#ff4d4d',weight:6,opacity:.8}).addTo(map);
-});
+/* --- Waze-style congestion (JAM alerts) --- */
 
-/* Weather zones */
-L.circle([32.37,-95.28],{radius:1500,color:'#00c2ff',fillOpacity:.2}).addTo(map)
-.bindPopup("Heavy Rain – NWS");
+// JAM_HEAVY – Broadway
+L.polyline([
+[32.333,-95.300],
+[32.345,-95.301],
+[32.358,-95.302]
+],{color:'#ff4d4d',weight:7})
+.addTo(map)
+.bindPopup(`
+<strong>Waze: JAM_HEAVY</strong><br>
+Avg speed: 14 mph<br>
+Reports: 9<br>
+Duration: 18 min
+`);
 
-/* Incidents */
-L.marker([32.351,-95.301]).addTo(map).bindPopup("Major Crash – PD / Fire");
-L.marker([32.36,-95.32]).addTo(map).bindPopup("TxDOT Lane Closure");
+// JAM_MODERATE – Loop 323
+L.polyline([
+[32.340,-95.325],
+[32.360,-95.330],
+[32.380,-95.315]
+],{color:'#ffb703',weight:6})
+.addTo(map)
+.bindPopup(`
+<strong>Waze: JAM_MODERATE</strong><br>
+Avg speed: 24 mph<br>
+Reports: 6
+`);
 
-/* Charts */
-new Chart(document.getElementById("speedChart"),{
-type:"line",
-data:{labels:["-60","-45","-30","-15","Now"],
-datasets:[{label:"Avg Speed (mph)",data:[38,36,34,33,32],borderColor:"#2ec4b6"}]},
-options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false}}}
-});
+/* --- Waze Alert Markers --- */
 
-new Chart(document.getElementById("delayChart"),{
-type:"line",
-data:{labels:["-60","-45","-30","-15","Now"],
-datasets:[{label:"Delay Index",data:[1.1,1.2,1.25,1.29,1.31],borderColor:"#ffb703"}]},
-options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false}}}
-});
+function wazeIcon(symbol){
+return L.divIcon({html:symbol,iconSize:[26,26]});
+}
 
-/* Clock */
-setInterval(()=>document.getElementById("clock").innerText=new Date().toLocaleString(),1000);
+// ACCIDENT_MAJOR
+L.marker([32.351,-95.301],{icon:wazeIcon("💥")})
+.addTo(map)
+.bindPopup(`
+<strong>Waze Alert: ACCIDENT_MAJOR</strong><br>
+Location: Broadway Ave<br>
+Reports: 7<br>
+Interpreted by: PD / Fire
+`);
+
+// STOPPED_VEHICLE
+L.marker([32.349,-95.298],{icon:wazeIcon("🚗")})
+.addTo(map)
+.bindPopup(`
+<strong>Waze Alert: STOPPED_VEHICLE</strong><br>
+Reports: 3<br>
+Shoulder obstruction
+`);
+
+// HAZARD_WEATHER
+L.marker([32.370,-95.285],{icon:wazeIcon("🌧️")})
+.addTo(map)
+.bindPopup(`
+<strong>Waze Alert: HAZARD_WEATHER</strong><br>
+Standing water reported<br>
+Verified by NWS overlay
+`);
+
+setInterval(()=>{
+document.getElementById("clock").innerText=new Date().toLocaleString();
+},1000);
 </script>
+
+<div class="legend">
+<div>💥 ACCIDENT_MAJOR</div>
+<div>🚗 STOPPED_VEHICLE</div>
+<div>🌧️ HAZARD_WEATHER</div>
+<div style="color:#ff4d4d">━ JAM_HEAVY</div>
+<div style="color:#ffb703">━ JAM_MODERATE</div>
+</div>
 
 </body>
 </html>
