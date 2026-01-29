@@ -715,6 +715,11 @@
       [32.3320, -95.3000]
     ], 40, [Departments.TRAFFIC, Departments.STREETS], 0.9)
   ];
+// Precompute densified geometry for each segment
+for (const seg of roadSegments) {
+  seg.denseGeometry = densifyGeometry(seg.geometry);
+  seg.subLayers = []; // will hold per-subsegment polylines
+}
 
   /********************************************************************
    * Weather simulation – NWS/NOAA-style circular overlays
@@ -874,6 +879,29 @@
   function segmentHasVisibleDept(seg) {
     return seg.departments.some(d => departmentFilters[d]);
   }
+// Densify a polyline by inserting interpolated points every ~30 meters
+function densifyGeometry(coords, maxSegmentMeters = 30) {
+  const result = [];
+  for (let i = 0; i < coords.length - 1; i++) {
+    const a = coords[i];
+    const b = coords[i + 1];
+
+    result.push(a);
+
+    const dist = distanceMeters(a, b);
+    if (dist > maxSegmentMeters) {
+      const steps = Math.floor(dist / maxSegmentMeters);
+      for (let s = 1; s < steps; s++) {
+        const t = s / steps;
+        const lat = a[0] + (b[0] - a[0]) * t;
+        const lng = a[1] + (b[1] - a[1]) * t;
+        result.push([lat, lng]);
+      }
+    }
+  }
+  result.push(coords[coords.length - 1]);
+  return result;
+}
 
   /********************************************************************
    * Draw weather cells
@@ -931,26 +959,40 @@
   }
 
   function drawRoads() {
-    for (const seg of roadSegments) {
-      const layer = L.polyline(seg.geometry, {
+  for (const seg of roadSegments) {
+    const g = seg.denseGeometry;
+
+    // Create subsegment polylines
+    for (let i = 0; i < g.length - 1; i++) {
+      const sub = L.polyline([g[i], g[i + 1]], {
         color: congestionColor(seg.congestion),
         weight: congestionWeight(seg.congestion),
-        opacity: 0.9
+        opacity: segmentHasVisibleDept(seg) ? 0.9 : 0.05
       }).addTo(map);
-      layer.bindPopup(() => popupHtmlForSegment(seg));
-      seg.leafletLayer = layer;
+
+      // Bind popup to the whole segment, not each subsegment
+      sub.bindPopup(() => popupHtmlForSegment(seg));
+
+      seg.subLayers.push(sub);
     }
   }
+}
 
-  function updateSegmentStyle(seg) {
-    if (!seg.leafletLayer) return;
-    const visible = segmentHasVisibleDept(seg);
-    seg.leafletLayer.setStyle({
-      color: congestionColor(seg.congestion),
-      weight: congestionWeight(seg.congestion),
+
+function updateSegmentStyle(seg) {
+  const visible = segmentHasVisibleDept(seg);
+  const color = congestionColor(seg.congestion);
+  const weight = congestionWeight(seg.congestion);
+
+  for (const sub of seg.subLayers) {
+    sub.setStyle({
+      color,
+      weight,
       opacity: visible ? 0.9 : 0.05
     });
   }
+}
+
 
   /********************************************************************
    * Congestion & speed simulation
