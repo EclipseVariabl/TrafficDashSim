@@ -21,6 +21,13 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #0f172a;
       color: #e5e7eb;
+      #top-bar-right .filter-group:last-of-type {
+  margin-right: 8px;
+}
+#weather-toggle {
+  cursor: pointer;
+}
+
     }
 
     #app {
@@ -429,6 +436,13 @@
           <span>Eng</span>
         </label>
       </div>
+      <div class="filter-group">
+        <span class="filter-label">Weather</span>
+        <label class="filter-item">
+          <input type="checkbox" id="weather-toggle" checked />
+          <span>On</span>
+        </label>
+      </div>
       <div id="sim-status">
         Simulation: <span id="sim-status-text">Running</span>
       </div>
@@ -491,6 +505,7 @@
    *  - departments: array of department codes
    *  - confidence: 0–1
    ********************************************************************/
+  let weatherEnabled = true;
 
   const Departments = {
     PD: "PD",
@@ -724,7 +739,7 @@
   /********************************************************************
    * Simulation parameters
    ********************************************************************/
-  const SIM_TICK_MS = 4000; // main update interval
+  const SIM_TICK_MS = 90000; // main update interval (90 seconds)
   const SPEED_VARIATION = 0.18; // random variation factor
   const WEATHER_IMPACT_MAX = 0.35; // max speed reduction from weather
   const CONGESTION_PROPAGATION = 0.25; // how much congestion spreads to neighbors
@@ -815,17 +830,20 @@
   }
 
   function segmentWeatherImpact(seg) {
-    const center = segmentCenter(seg);
-    let impact = 0;
-    for (const cell of weatherCells) {
-      const d = distanceMeters(center, cell.center);
-      if (d < cell.radiusMeters) {
-        const local = 1 - (d / cell.radiusMeters);
-        impact = Math.max(impact, local * cell.severity);
-      }
+  if (!weatherEnabled) return 0;
+
+  const center = segmentCenter(seg);
+  let impact = 0;
+  for (const cell of weatherCells) {
+    const d = distanceMeters(center, cell.center);
+    if (d < cell.radiusMeters) {
+      const local = 1 - (d / cell.radiusMeters);
+      impact = Math.max(impact, local * cell.severity);
     }
-    return impact * WEATHER_IMPACT_MAX;
   }
+  return impact * WEATHER_IMPACT_MAX;
+}
+
 
   function randomCauseForSegment(seg, congestion) {
     const causes = [];
@@ -1149,6 +1167,27 @@
     bind("filter-streets", Departments.STREETS);
     bind("filter-eng", Departments.ENG);
   }
+  function attachWeatherToggleHandler() {
+  const el = document.getElementById("weather-toggle");
+  const labelSpan = el.parentElement.querySelector("span");
+
+  function applyState() {
+    weatherEnabled = el.checked;
+    labelSpan.textContent = weatherEnabled ? "On" : "Off";
+
+    // Show/hide weather circles
+    for (const layer of weatherLayers) {
+      if (weatherEnabled) {
+        if (!map.hasLayer(layer)) map.addLayer(layer);
+      } else {
+        if (map.hasLayer(layer)) map.removeLayer(layer);
+      }
+    }
+  }
+
+  el.addEventListener("change", applyState);
+  applyState();
+}
 
   /********************************************************************
    * Main simulation loop
@@ -1169,10 +1208,12 @@
    * Initialization
    ********************************************************************/
   drawWeatherCells();
-  drawRoads();
-  attachFilterHandlers();
-  simulationTick(); // initial
-  setInterval(simulationTick, SIM_TICK_MS);
+drawRoads();
+attachFilterHandlers();
+attachWeatherToggleHandler();
+simulationTick(); // initial
+setInterval(simulationTick, SIM_TICK_MS);
+
 </script>
 </body>
 </html>
