@@ -11,14 +11,15 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#ec
   position:fixed; top:0; left:0; right:0; height:60px;
   background:#1b2838; color:#fff; display:flex; align-items:center; padding:0 12px; font-size:15px; z-index:1001;
 }
-#topbar .btn { margin-right:12px; padding:8px 12px; border:none; cursor:pointer; border-radius:4px; font-size:14px; }
+#topbar .btn { margin-right:12px; padding:8px 12px; border:none; cursor:pointer; border-radius:4px; font-size:14px; transition:all 0.2s;}
 #topbar .btn.active { background:#66c0f4; color:#1b2838; }
-#weather-toggle { margin-left:15px; }
+#weather-toggle { margin-left:15px; display:flex; align-items:center; }
+#weather-toggle input { margin-right:5px; transform:scale(1.2); }
 #sim-status { margin-left:auto; font-weight:bold; color:#9acdff; }
 #map { position:absolute; top:60px; bottom:0; left:0; right:300px; }
 #reports { position:fixed; top:60px; right:0; bottom:0; width:300px; background:#fff; border-left:2px solid #ddd; overflow-y:auto; padding:12px; font-size:14px; }
 #reports h3 { margin-top:0; font-size:18px; border-bottom:1px solid #ccc; padding-bottom:6px; }
-.report-card { border:1px solid #ddd; margin-bottom:8px; border-radius:4px; padding:8px; background:#fafafa; }
+.report-card { border:1px solid #ddd; margin-bottom:8px; border-radius:4px; padding:8px; background:#fafafa; transition:all 0.2s; }
 .report-card .severity { font-weight:bold; color:#d9534f; }
 .traffic-line { stroke-linecap:round; }
 </style>
@@ -46,8 +47,8 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#ec
 
 // ----------------------------
 // Configuration
-const simulationTick = 90000; // 90 sec
-const subsegmentLength = 0.00035; // densification step (~40m)
+const simulationTick = 90000; // 90 seconds
+const subsegmentLength = 0.00035; // ~40m
 const congestionColors = ["#00ff00","#ffff00","#ff8000","#ff0000"];
 const alertTypes = [
   "Police","Speed Trap","Traffic Stop","Crash","Severe Crash","Pile-up","Closure",
@@ -77,19 +78,17 @@ function densify(points){
   densified.push(points[points.length-1]);
   return densified;
 }
-function inWeatherZone(latlng,zone){
-  return dist(latlng,zone.center) < zone.radius;
-}
+function inWeatherZone(latlng,zone){ return dist(latlng,zone.center) < zone.radius; }
 
 // ----------------------------
 // Map
-const map = L.map('map').setView([32.351,-95.301],13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'&copy; OSM contributors'}).addTo(map);
+const map = L.map('map').setView([32.3513,-95.3011],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 const trafficLayer = L.layerGroup().addTo(map);
 const alertLayer = L.layerGroup().addTo(map);
 
 // ----------------------------
-// Road Data (Tyler realistic approximate)
+// Road Data (approximate Tyler coordinates)
 const roads=[
   {name:"Broadway Ave",pts:[[32.380,-95.301],[32.360,-95.301],[32.345,-95.301]],speed:40,deps:["Traffic","Streets"]},
   {name:"Loop 323 North",pts:[[32.380,-95.285],[32.370,-95.270],[32.355,-95.265]],speed:50,deps:["Traffic","Engineering"]},
@@ -100,12 +99,13 @@ const roads=[
   {name:"University Blvd",pts:[[32.345,-95.300],[32.350,-95.290],[32.355,-95.280]],speed:40,deps:["Traffic","Police"]},
   {name:"Old Jacksonville Hwy",pts:[[32.360,-95.290],[32.365,-95.285],[32.370,-95.280]],speed:45,deps:["Traffic","Engineering"]},
   {name:"Troup Hwy",pts:[[32.370,-95.315],[32.375,-95.310],[32.380,-95.305]],speed:45,deps:["Traffic","Streets"]},
-  {name:"1st St",pts:[[32.350,-95.306],[32.355,-95.306],[32.360,-95.306]],speed:30,deps:["Traffic","Police"]},
-  {name:"2nd St",pts:[[32.350,-95.303],[32.355,-95.303],[32.360,-95.303]],speed:30,deps:["Traffic","Police"]},
-  {name:"Erwin St",pts:[[32.350,-95.300],[32.355,-95.300],[32.360,-95.300]],speed:30,deps:["Traffic","Police"]},
-  {name:"Front St",pts:[[32.350,-95.297],[32.355,-95.297],[32.360,-95.297]],speed:30,deps:["Traffic","Police"]},
-  {name:"5th St",pts:[[32.350,-95.309],[32.355,-95.309],[32.360,-95.309]],speed:25,deps:["Traffic","Police"]},
-  {name:"6th St",pts:[[32.349,-95.309],[32.354,-95.309],[32.359,-95.309]],speed:25,deps:["Traffic","Police"]},
+  // Downtown grid rotated ~15° for realism
+  {name:"1st St",pts:[[32.350,-95.306],[32.355,-95.305],[32.360,-95.304]],speed:30,deps:["Traffic","Police"]},
+  {name:"2nd St",pts:[[32.350,-95.303],[32.355,-95.302],[32.360,-95.301]],speed:30,deps:["Traffic","Police"]},
+  {name:"Erwin St",pts:[[32.350,-95.300],[32.355,-95.299],[32.360,-95.298]],speed:30,deps:["Traffic","Police"]},
+  {name:"Front St",pts:[[32.350,-95.297],[32.355,-95.296],[32.360,-95.295]],speed:30,deps:["Traffic","Police"]},
+  {name:"5th St",pts:[[32.350,-95.309],[32.355,-95.308],[32.360,-95.307]],speed:25,deps:["Traffic","Police"]},
+  {name:"6th St",pts:[[32.349,-95.309],[32.354,-95.308],[32.359,-95.307]],speed:25,deps:["Traffic","Police"]},
   {name:"Beckham Rd",pts:[[32.355,-95.305],[32.355,-95.295]],speed:35,deps:["Traffic","Streets"]},
   {name:"Gentry Pkwy",pts:[[32.360,-95.315],[32.365,-95.315]],speed:40,deps:["Traffic","Engineering"]},
   {name:"Main St",pts:[[32.350,-95.310],[32.350,-95.290]],speed:30,deps:["Traffic","Streets"]},
@@ -115,16 +115,17 @@ const roads=[
   {name:"Tyler Ave",pts:[[32.354,-95.299],[32.354,-95.289]],speed:30,deps:["Traffic","Police"]}
 ];
 
-// Densify
+// Densify geometry
 roads.forEach(r=>{ r.densified=densify(r.pts); r.speeds=r.densified.map(()=>r.speed); });
 
-// Weather
+// Weather zones
 let weatherEnabled = true;
 const weatherZones = [
   {center:[32.355,-95.300],radius:0.006,intensity:0.5},
   {center:[32.365,-95.310],radius:0.008,intensity:0.6}
 ];
 
+// ----------------------------
 // Alerts
 let activeAlerts=[];
 function generateAlerts(){
@@ -147,7 +148,7 @@ function generateAlerts(){
 }
 
 // ----------------------------
-// Rendering
+// Render
 function renderTraffic(){
   trafficLayer.clearLayers();
   roads.forEach(road=>{
