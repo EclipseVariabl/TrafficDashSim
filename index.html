@@ -3,213 +3,227 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tyler TX - Precision Traffic Systems</title>
+    <title>Tyler Precision Traffic - Coordinate Sync v6</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
-            --bg: #050505;
-            --panel: #111114;
-            --accent: #2563eb;
-            --critical: #dc2626;
-            --heavy: #d97706;
-            --flow: #059669;
+            --bg: #0a0a0c;
+            --panel: #141417;
             --text: #f8fafc;
+            --pd-blue: #2563eb;
+            --fire-red: #dc2626;
+            --eng-amber: #d97706;
+            --road-flow: #059669;
         }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-        
-        #ui-wrapper { display: flex; flex-direction: column; height: 100vh; }
-        
-        header {
-            height: 50px; background: #000; border-bottom: 1px solid #222;
-            display: flex; align-items: center; padding: 0 20px; justify-content: space-between; z-index: 1000;
-        }
-        .title { font-weight: 900; font-size: 0.9rem; color: var(--accent); text-transform: uppercase; }
-        .filter-group { display: flex; gap: 5px; }
-        .btn {
-            background: #111; border: 1px solid #333; color: #666; padding: 5px 12px;
-            border-radius: 3px; cursor: pointer; font-size: 0.7rem; font-weight: bold;
-        }
-        .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
-        #main { display: flex; flex: 1; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+        #app-container { display: flex; flex-direction: column; height: 100vh; }
+
+        header {
+            height: 55px; background: #000; border-bottom: 1px solid #2d2d35;
+            display: flex; align-items: center; padding: 0 25px; justify-content: space-between; z-index: 1000;
+        }
+
+        .logo { font-weight: 900; font-size: 0.9rem; letter-spacing: 1.5px; color: #fff; }
+        .logo span { color: var(--pd-blue); }
+
+        .dept-filters { display: flex; gap: 8px; }
+        .f-btn {
+            background: #1c1c21; border: 1px solid #333; color: #888;
+            padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: 700;
+            transition: 0.2s;
+        }
+        .f-btn.active { background: #333; color: #fff; border-color: #555; box-shadow: 0 0 10px rgba(255,255,255,0.1); }
+        .f-btn.active.pd { border-bottom: 3px solid var(--pd-blue); }
+        .f-btn.active.fire { border-bottom: 3px solid var(--fire-red); }
+        .f-btn.active.eng { border-bottom: 3px solid var(--eng-amber); }
+
+        #main { display: flex; flex: 1; overflow: hidden; }
         #map { flex: 1; background: #000; }
-        
-        #sidebar { width: 340px; background: var(--panel); border-left: 1px solid #222; display: flex; flex-direction: column; }
-        .status-bar { padding: 12px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; background: #000; }
-        .heartbeat { width: 10px; height: 10px; border-radius: 50%; background: #0f0; box-shadow: 0 0 5px #0f0; }
-        
-        #report-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .report-card { 
-            background: #1a1a1f; margin-bottom: 10px; padding: 12px; border-radius: 4px; 
-            border-left: 3px solid #444; font-size: 0.8rem;
+
+        #sidebar {
+            width: 360px; background: var(--panel); border-left: 1px solid #222;
+            display: flex; flex-direction: column;
         }
-        .report-card.high { border-left-color: var(--critical); }
-        .report-card.med { border-left-color: var(--heavy); }
-        .report-card.low { border-left-color: var(--flow); }
-        .report-card.hidden { display: none; }
-        .coords { font-family: monospace; color: #555; font-size: 0.65rem; }
+
+        .panel-header { padding: 15px; border-bottom: 1px solid #222; font-size: 0.75rem; font-weight: 800; display: flex; justify-content: space-between; }
+        #timer { font-family: monospace; color: var(--pd-blue); }
+
+        #alert-feed { flex: 1; overflow-y: auto; padding: 12px; }
         
-        .waze-marker {
-            width: 28px; height: 28px; border-radius: 50% 50% 50% 0;
-            background: var(--accent); transform: rotate(-45deg);
+        .alert-card {
+            background: #1d1d22; border-radius: 4px; padding: 15px; margin-bottom: 10px;
+            border-left: 4px solid #444; position: relative;
+        }
+        .alert-card.PD { border-left-color: var(--pd-blue); }
+        .alert-card.FIRE { border-left-color: var(--fire-red); }
+        .alert-card.ENG { border-left-color: var(--eng-amber); }
+        .alert-card.hidden { display: none; }
+
+        .card-header { display: flex; justify-content: space-between; font-size: 0.65rem; color: #666; margin-bottom: 5px; }
+        .card-body { font-weight: 700; font-size: 0.85rem; margin-bottom: 5px; }
+        .card-coords { font-family: monospace; font-size: 0.65rem; color: #444; }
+
+        /* Map Markers */
+        .precise-pin {
+            width: 26px; height: 26px; border-radius: 50% 50% 50% 0;
             display: flex; align-items: center; justify-content: center;
-            border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            border: 2px solid white; transform: rotate(-45deg);
         }
-        .waze-marker span { transform: rotate(45deg); font-size: 14px; font-weight: bold; color: white; }
+        .precise-pin span { transform: rotate(45deg); font-size: 14px; font-weight: bold; }
+        .pin-PD { background: var(--pd-blue); box-shadow: 0 0 15px var(--pd-blue); }
+        .pin-FIRE { background: var(--fire-red); box-shadow: 0 0 15px var(--fire-red); }
+        .pin-ENG { background: var(--eng-amber); box-shadow: 0 0 15px var(--eng-amber); }
+
     </style>
 </head>
 <body>
 
-<div id="ui-wrapper">
+<div id="app-container">
     <header>
-        <div class="title">Tyler Precision Simulation <span>// v5.1 Coordinate-Active</span></div>
-        <div class="filter-group">
-            <button class="btn active" onclick="setFilter('ALL')">ALL</button>
-            <button class="btn" onclick="setFilter('PD')">PD</button>
-            <button class="btn" onclick="setFilter('FIRE')">FIRE</button>
-            <button class="btn" onclick="setFilter('ENG')">ENG</button>
+        <div class="logo">TYLER_PRECISION_SIM <span>v6.0</span></div>
+        <div class="dept-filters">
+            <button class="f-btn active" onclick="setDept('ALL')">ALL UNITS</button>
+            <button class="f-btn pd" id="btn-PD" onclick="setDept('PD')">POLICE</button>
+            <button class="f-btn fire" id="btn-FIRE" onclick="setDept('FIRE')">FIRE</button>
+            <button class="f-btn eng" id="btn-ENG" onclick="setDept('ENG')">TRAFFIC ENG</button>
         </div>
     </header>
+
     <div id="main">
         <div id="map"></div>
         <div id="sidebar">
-            <div class="status-bar">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <div class="heartbeat" id="heart"></div>
-                    <span style="font-size: 0.7rem; font-weight: bold;">LIVE FEED</span>
-                </div>
-                <span id="timer" style="font-family: monospace; font-size: 0.8rem; color: var(--accent);">01:30</span>
+            <div class="panel-header">
+                ACTIVE COORDINATE LOGS
+                <span id="timer">01:30</span>
             </div>
-            <div id="report-list"></div>
+            <div id="alert-feed"></div>
         </div>
     </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const REFRESH_RATE = 90000;
-    let map, segments = [], alerts = [], currentFilter = 'ALL', timeLeft = 90;
+    const SIM_CYCLE = 90000;
+    let map, roadNetwork = [], activeAlerts = [], filter = 'ALL', countdown = 90;
 
-    // HIGH PRECISION ROAD NETWORK - Intersection-to-Intersection
-    const ROAD_NETWORK = [
-        // Loop 323 - Quad Segments for high accuracy
-        { name: "Loop 323 (North)", coords: [[32.4024, -95.3344], [32.4024, -95.3013], [32.4024, -95.2655]] },
-        { name: "Loop 323 (East)", coords: [[32.4024, -95.2655], [32.3510, -95.2655], [32.3080, -95.2655]] },
-        { name: "Loop 323 (South)", coords: [[32.3080, -95.2655], [32.3080, -95.3013], [32.3080, -95.3344]] },
-        { name: "Loop 323 (West)", coords: [[32.3080, -95.3344], [32.3510, -95.3344], [32.4024, -95.3344]] },
-        // Broadway (Hwy 69) - Dense Intersections
-        { name: "S Broadway (Loop to Grande)", coords: [[32.3080, -95.3013], [32.2900, -95.3013], [32.2700, -95.3013]] },
-        { name: "S Broadway (Downtown to Loop)", coords: [[32.3510, -95.3013], [32.3300, -95.3013], [32.3080, -95.3013]] },
-        { name: "N Broadway (Downtown to Gentry)", coords: [[32.3510, -95.3013], [32.3750, -95.3013], [32.4024, -95.3013]] },
-        // Front St (Hwy 31)
-        { name: "E Front St", coords: [[32.3510, -95.3013], [32.3510, -95.2655], [32.3510, -95.2200]] },
-        { name: "W Front St", coords: [[32.3510, -95.3013], [32.3510, -95.3344], [32.3510, -95.3800]] },
-        // Diagonals
-        { name: "Troup Hwy", coords: [[32.3480, -95.2950], [32.3250, -95.2750], [32.3080, -95.2600]] },
-        { name: "Gentry Pkwy", coords: [[32.3650, -95.3080], [32.3850, -95.3250], [32.4024, -95.3344]] }
+    // EXACT COORDINATE GEOMETRY FOR TYLER STREETS
+    const STREETS = [
+        { name: "S Broadway Ave (Loop to Downtown)", path: [[32.3082, -95.3013], [32.3250, -95.3013], [32.3385, -95.3013], [32.3513, -95.3011]] },
+        { name: "Loop 323 (North Arc)", path: [[32.4024, -95.3344], [32.4025, -95.3150], [32.4024, -95.3013], [32.4024, -95.2850], [32.4024, -95.2655]] },
+        { name: "Loop 323 (South Arc)", path: [[32.3080, -95.3344], [32.3080, -95.3180], [32.3080, -95.3013], [32.3080, -95.2850], [32.3080, -95.2655]] },
+        { name: "E Front St (SH-31)", path: [[32.3513, -95.3011], [32.3513, -95.2800], [32.3513, -95.2655], [32.3513, -95.2300]] },
+        { name: "Troup Hwy", path: [[32.3485, -95.2930], [32.3350, -95.2820], [32.3220, -95.2700], [32.3080, -95.2655]] },
+        { name: "Old Jacksonville Hwy", path: [[32.3280, -95.3130], [32.3150, -95.3250], [32.3020, -95.3360], [32.2850, -95.3500]] }
+    ];
+
+    const INCIDENTS = [
+        { label: "MVA Major", icon: "💥", dept: "FIRE" },
+        { label: "Patrol Stop", icon: "🚔", dept: "PD" },
+        { label: "Disabled Vehicle", icon: "🚗", dept: "PD" },
+        { label: "Signal Maintenance", icon: "🚦", dept: "ENG" },
+        { label: "Utility Hazard", icon: "🚧", dept: "ENG" }
     ];
 
     function init() {
-        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([32.3513, -95.3011], 13);
+        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([32.335, -95.301], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-        ROAD_NETWORK.forEach(road => {
-            const poly = L.polyline(road.coords, { color: '#059669', weight: 5, opacity: 0.8 }).addTo(map);
-            segments.push({ ...road, layer: poly });
+        // Build exact geometry layers
+        STREETS.forEach(s => {
+            const poly = L.polyline(s.path, {
+                color: varColor('--road-flow'),
+                weight: 6,
+                opacity: 0.9,
+                lineCap: 'round'
+            }).addTo(map);
+            roadNetwork.push({ ...s, layer: poly });
         });
 
-        runCycle();
-        setInterval(runCycle, REFRESH_RATE);
-        setInterval(tick, 1000);
+        triggerSim();
+        setInterval(triggerSim, SIM_CYCLE);
+        setInterval(updateTimer, 1000);
     }
 
-    function runCycle() {
-        timeLeft = 90;
-        document.getElementById('heart').style.background = '#0f0';
-
-        // Update Road Status based on localized probability
-        segments.forEach(seg => {
-            const chance = Math.random();
-            let color = '#059669';
-            if (chance > 0.85) color = '#dc2626'; // Jams
-            else if (chance > 0.65) color = '#d97706'; // Heavy
-            seg.layer.setStyle({ color: color });
-        });
-
-        // Clear and Generate New Coordinate Reports
-        alerts.forEach(a => map.removeLayer(a.marker));
-        alerts = [];
-        document.getElementById('report-list').innerHTML = '';
-
-        for(let i=0; i<4; i++) createPreciseIncident();
-    }
-
-    function createPreciseIncident() {
-        const road = ROAD_NETWORK[Math.floor(Math.random() * ROAD_NETWORK.length)];
-        const types = [
-            { t: "Major Collision", i: "💥", d: ["PD", "FIRE"], s: "high" },
-            { t: "Stalled Vehicle", i: "🚗", d: ["PD"], s: "low" },
-            { t: "Signal Failure", i: "🚦", d: ["ENG"], s: "high" },
-            { t: "Debris", i: "🚧", d: ["ENG"], s: "med" }
-        ];
-        const type = types[Math.floor(Math.random() * types.length)];
+    function triggerSim() {
+        countdown = 90;
         
-        // COORDINATE CALCULATION: Pick two points on the road and interpolate a random mid-point
-        const pt1 = road.coords[0];
-        const pt2 = road.coords[1];
-        const ratio = Math.random();
-        const lat = pt1[0] + (pt2[0] - pt1[0]) * ratio;
-        const lng = pt1[1] + (pt2[1] - pt1[1]) * ratio;
+        // Update Street Congestion (The Jams)
+        roadNetwork.forEach(r => {
+            const state = Math.random();
+            let col = '#059669'; // Green
+            if (state > 0.8) col = '#dc2626'; // Red
+            else if (state > 0.6) col = '#d97706'; // Amber
+            r.layer.setStyle({ color: col });
+        });
 
-        const iconColor = type.s === 'high' ? '#dc2626' : (type.s === 'med' ? '#d97706' : '#2563eb');
-        const marker = L.marker([lat, lng], {
+        // Clear and Spawn Coordinate-Exact Alerts
+        activeAlerts.forEach(a => map.removeLayer(a.marker));
+        activeAlerts = [];
+        document.getElementById('alert-feed').innerHTML = '';
+
+        for(let i=0; i<4; i++) createPreciseAlert();
+    }
+
+    function createPreciseAlert() {
+        const road = STREETS[Math.floor(Math.random() * STREETS.length)];
+        const data = INCIDENTS[Math.floor(Math.random() * INCIDENTS.length)];
+        
+        // Coordinate Logic: Snapping to an exact vertex of the street's path
+        const coord = road.path[Math.floor(Math.random() * road.path.length)];
+        
+        const marker = L.marker(coord, {
             icon: L.divIcon({
                 className: '',
-                html: `<div class="waze-marker" style="background:${iconColor}"><span>${type.i}</span></div>`,
-                iconSize: [28, 28]
+                html: `<div class="precise-pin pin-${data.dept}"><span>${data.icon}</span></div>`,
+                iconSize: [26, 26]
             })
-        }).bindPopup(`<b>${type.t}</b><br>${road.name}`);
+        });
 
         const card = document.createElement('div');
-        card.className = `report-card ${type.s}`;
+        card.className = `alert-card ${data.dept}`;
         card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                <b style="color:white;">${type.t}</b>
-                <span style="color:#666; font-size:10px;">${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+            <div class="card-header">
+                <span>UNIT: ${data.dept}</span>
+                <span>${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
             </div>
-            <div style="margin-bottom:8px;">${road.name}</div>
-            <div class="coords">LAT: ${lat.toFixed(5)} / LNG: ${lng.toFixed(5)}</div>
-            <div style="display:flex; gap:4px; margin-top:8px;">
-                ${type.d.map(d => `<span style="background:#333; padding:2px 5px; border-radius:2px; font-size:9px;">${d}</span>`).join('')}
-            </div>
+            <div class="card-body">${data.icon} ${data.label}</div>
+            <div style="font-size:0.75rem; color:#aaa; margin-bottom:5px;">${road.name}</div>
+            <div class="card-coords">X: ${coord[0].toFixed(4)} / Y: ${coord[1].toFixed(4)}</div>
         `;
 
-        const alertObj = { marker, depts: type.d, element: card };
-        alerts.push(alertObj);
-        document.getElementById('report-list').prepend(card);
-        updateVisibility(alertObj);
+        const alertObj = { marker, dept: data.dept, element: card };
+        activeAlerts.push(alertObj);
+        document.getElementById('alert-feed').prepend(card);
+        sync(alertObj);
     }
 
-    function setFilter(f) {
-        currentFilter = f;
-        document.querySelectorAll('.btn').forEach(b => b.classList.toggle('active', b.innerText === f || (f === 'ALL' && b.innerText === 'ALL')));
-        alerts.forEach(updateVisibility);
+    function setDept(d) {
+        filter = d;
+        document.querySelectorAll('.f-btn').forEach(b => b.classList.toggle('active', b.innerText.includes(d) || (d === 'ALL' && b.innerText === 'ALL UNITS')));
+        activeAlerts.forEach(sync);
     }
 
-    function updateVisibility(a) {
-        const show = currentFilter === 'ALL' || a.depts.includes(currentFilter);
-        if(show) { a.marker.addTo(map); a.element.classList.remove('hidden'); }
-        else { map.removeLayer(a.marker); a.element.classList.add('hidden'); }
+    function sync(obj) {
+        const show = (filter === 'ALL' || obj.dept === filter);
+        if (show) {
+            obj.marker.addTo(map);
+            obj.element.classList.remove('hidden');
+        } else {
+            map.removeLayer(obj.marker);
+            obj.element.classList.add('hidden');
+        }
     }
 
-    function tick() {
-        timeLeft--;
-        if(timeLeft < 0) timeLeft = 0;
-        const m = Math.floor(timeLeft / 60);
-        const s = timeLeft % 60;
-        document.getElementById('timer').innerText = `${m}:${s < 10 ? '0'+s : s}`;
-        if(timeLeft < 5) document.getElementById('heart').style.background = '#f00';
+    function updateTimer() {
+        countdown--;
+        const m = Math.floor(countdown / 60);
+        const s = countdown % 60;
+        document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' + s : s}`;
     }
+
+    function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
     window.onload = init;
 </script>
