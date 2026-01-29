@@ -3,80 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tyler TX Precision Ops v7</title>
+    <title>Tyler TX Precision Traffic Ops v8</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
-            --bg: #0c0c0e;
-            --panel: #16161a;
+            --bg: #0a0a0b;
+            --panel: #121215;
             --pd: #2563eb;
             --fire: #dc2626;
             --eng: #d97706;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
+            --road-weight: 7;
         }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: #fff; overflow: hidden; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: #fff; overflow: hidden; }
         
         #layout { display: flex; flex-direction: column; height: 100vh; }
         header { 
-            height: 60px; background: #111; border-bottom: 1px solid #333; 
-            display: flex; align-items: center; padding: 0 20px; justify-content: space-between;
+            height: 55px; background: #000; border-bottom: 1px solid #2d2d30; 
+            display: flex; align-items: center; padding: 0 20px; justify-content: space-between; z-index: 1000;
         }
-        .brand { font-weight: 800; font-size: 1.1rem; color: var(--pd); }
-        .controls { display: flex; gap: 8px; }
+        .brand { font-weight: 900; font-size: 0.85rem; letter-spacing: 1px; color: #eee; }
+        .controls { display: flex; gap: 6px; }
         .btn { 
-            background: #222; border: 1px solid #444; color: #888; padding: 6px 15px; 
-            border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; 
+            background: #1a1a1d; border: 1px solid #333; color: #777; padding: 5px 12px; 
+            border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: 700; 
         }
-        .btn.active { color: #fff; border-color: #666; background: #333; }
-        .btn.active.pd { border-bottom: 3px solid var(--pd); }
-        .btn.active.fire { border-bottom: 3px solid var(--fire); }
-        .btn.active.eng { border-bottom: 3px solid var(--eng); }
+        .btn.active { color: #fff; border-color: #555; background: #2a2a2e; }
+        .btn.active.pd { border-bottom: 2px solid var(--pd); }
+        .btn.active.fire { border-bottom: 2px solid var(--fire); }
+        .btn.active.eng { border-bottom: 2px solid var(--eng); }
 
         #main { display: flex; flex: 1; }
         #map { flex: 1; background: #000; }
-        #sidebar { width: 380px; background: var(--panel); border-left: 1px solid #333; display: flex; flex-direction: column; }
+        #sidebar { width: 350px; background: var(--panel); border-left: 1px solid #2d2d30; display: flex; flex-direction: column; }
         
-        .header-box { padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-        .timer { font-family: monospace; font-size: 1rem; color: var(--pd); background: #000; padding: 2px 8px; border-radius: 4px; }
+        .header-box { padding: 15px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+        .timer { font-family: monospace; font-size: 0.9rem; color: var(--pd); }
         
         #feed { flex: 1; overflow-y: auto; padding: 12px; }
         .card { 
-            background: #1f1f24; padding: 15px; border-radius: 6px; margin-bottom: 12px; 
-            border-left: 5px solid #444; cursor: pointer; transition: 0.2s;
+            background: #19191c; padding: 12px; border-radius: 4px; margin-bottom: 8px; 
+            border-left: 4px solid #333; cursor: pointer; border-right: 1px solid #222;
         }
-        .card:hover { background: #25252b; }
         .card.PD { border-left-color: var(--pd); }
         .card.FIRE { border-left-color: var(--fire); }
         .card.ENG { border-left-color: var(--eng); }
         .card.hidden { display: none; }
         
-        .card-top { display: flex; justify-content: space-between; font-size: 0.7rem; color: #777; margin-bottom: 5px; }
-        .card-msg { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
-        .card-loc { font-size: 0.75rem; color: #aaa; font-family: monospace; }
+        .card-top { display: flex; justify-content: space-between; font-size: 0.6rem; color: #555; margin-bottom: 4px; text-transform: uppercase; }
+        .card-msg { font-weight: 700; font-size: 0.8rem; margin-bottom: 2px; }
+        .card-loc { font-size: 0.7rem; color: #888; }
 
-        .custom-pin {
-            width: 32px; height: 32px; border-radius: 50% 50% 50% 0;
+        .precise-pin {
+            width: 26px; height: 26px; border-radius: 50% 50% 50% 0;
             display: flex; align-items: center; justify-content: center;
             border: 2px solid #fff; transform: rotate(-45deg);
         }
-        .custom-pin span { transform: rotate(45deg); font-size: 16px; font-weight: bold; }
-        .pin-PD { background: var(--pd); box-shadow: 0 0 10px var(--pd); }
-        .pin-FIRE { background: var(--fire); box-shadow: 0 0 10px var(--fire); }
-        .pin-ENG { background: var(--eng); box-shadow: 0 0 10px var(--eng); }
+        .precise-pin span { transform: rotate(45deg); font-size: 12px; }
+        .pin-PD { background: var(--pd); }
+        .pin-FIRE { background: var(--fire); }
+        .pin-ENG { background: var(--eng); }
     </style>
 </head>
 <body>
 
 <div id="layout">
     <header>
-        <div class="brand">TYLERSIM // PRECISION_DASHBOARD</div>
+        <div class="brand">TYLER_OPS // <span style="color:var(--pd)">PRECISION_GRID</span></div>
         <div class="controls">
-            <button class="btn active" onclick="filterData('ALL')">ALL UNITS</button>
-            <button class="btn" id="b-PD" onclick="filterData('PD')">POLICE</button>
-            <button class="btn" id="b-FIRE" onclick="filterData('FIRE')">FIRE</button>
-            <button class="btn" id="b-ENG" onclick="filterData('ENG')">TRAFFIC ENG</button>
+            <button class="btn active" onclick="filterData('ALL')">ALL</button>
+            <button class="btn pd" id="b-PD" onclick="filterData('PD')">POLICE</button>
+            <button class="btn fire" id="b-FIRE" onclick="filterData('FIRE')">FIRE</button>
+            <button class="btn eng" id="b-ENG" onclick="filterData('ENG')">ENGINEERING</button>
         </div>
     </header>
 
@@ -84,7 +81,7 @@
         <div id="map"></div>
         <div id="sidebar">
             <div class="header-box">
-                <span style="font-weight: 700; font-size: 0.8rem;">COORDINATE-ACTIVE FEED</span>
+                <span style="font-weight: 800; font-size: 0.7rem; color: #555;">CAD INCIDENT LOG</span>
                 <span id="timer" class="timer">01:30</span>
             </div>
             <div id="feed"></div>
@@ -94,112 +91,126 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const REFRESH = 90000;
-    let map, segments = [], alerts = [], currentDept = 'ALL', seconds = 90;
+    const CYCLE = 90000;
+    let map, segments = [], alerts = [], currentFilter = 'ALL', timeLeft = 90;
 
-    // ACTUAL COORDINATE NODES - TYLER, TX
-    // These paths are manually segmented to match intersection-level accuracy
-    const ROAD_GRAPH = [
-        { id: 1, name: "S Broadway (Grande to Loop)", path: [[32.2700, -95.3013], [32.2850, -95.3013], [32.3082, -95.3013]] },
-        { id: 2, name: "S Broadway (Loop to Rice Rd)", path: [[32.3082, -95.3013], [32.3210, -95.3013]] },
-        { id: 3, name: "S Broadway (Rice Rd to Downtown)", path: [[32.3210, -95.3013], [32.3385, -95.3013], [32.3513, -95.3011]] },
-        { id: 4, name: "Loop 323 (SW Quadrant)", path: [[32.3080, -95.3344], [32.3080, -95.3180], [32.3080, -95.3013]] },
-        { id: 5, name: "Loop 323 (SE Quadrant)", path: [[32.3080, -95.3013], [32.3080, -95.2850], [32.3080, -95.2655]] },
-        { id: 6, name: "Troup Hwy (At Dueling Oaks)", path: [[32.3350, -95.2820], [32.3220, -95.2700], [32.3080, -95.2655]] },
-        { id: 7, name: "W Front (At Loop 323)", path: [[32.3513, -95.3344], [32.3513, -95.3500], [32.3513, -95.3800]] }
+    // HIGH-DENSITY COORDINATE PATHS (ALIGNED TO MAP PIXELS)
+    const ROAD_DATA = [
+        { 
+            name: "S Broadway (S-Loop to Downtown)", 
+            path: [[32.3082, -95.3013], [32.3155, -95.3013], [32.3245, -95.3013], [32.3385, -95.3012], [32.3513, -95.3011]] 
+        },
+        { 
+            name: "Loop 323 (SE Arc)", 
+            path: [[32.3080, -95.3013], [32.3080, -95.2850], [32.3080, -95.2750], [32.3125, -95.2645], [32.3250, -95.2595]] 
+        },
+        { 
+            name: "Loop 323 (SW Arc)", 
+            path: [[32.3080, -95.3013], [32.3080, -95.3250], [32.3120, -95.3385], [32.3230, -95.3415], [32.3350, -95.3415]] 
+        },
+        {
+            name: "Troup Hwy (Hwy 110)",
+            path: [[32.3485, -95.2935], [32.3380, -95.2855], [32.3250, -95.2755], [32.3150, -95.2675], [32.3080, -95.2625]]
+        },
+        {
+            name: "Old Jacksonville Hwy",
+            path: [[32.3282, -95.3135], [32.3180, -95.3215], [32.3050, -95.3335], [32.2920, -95.3455], [32.2800, -95.3585]]
+        },
+        {
+            name: "Grande Blvd (South Tyler)",
+            path: [[32.2810, -95.3350], [32.2810, -95.3150], [32.2810, -95.3015], [32.2810, -95.2800], [32.2810, -95.2650]]
+        }
     ];
 
-    const INCIDENT_TYPES = [
-        { label: "Structure Fire", icon: "🔥", dept: "FIRE" },
+    const TYPES = [
+        { label: "MVA - Injury", icon: "🚑", dept: "FIRE" },
         { label: "Traffic Stop", icon: "🚔", dept: "PD" },
-        { label: "Stalled Vehicle", icon: "⚠️", dept: "PD" },
-        { label: "Accident - No Injury", icon: "🚗", dept: "PD" },
-        { label: "Signal Malfunction", icon: "🚦", dept: "ENG" },
-        { label: "Hazard Cleanup", icon: "🚧", dept: "ENG" }
+        { label: "Road Hazard", icon: "⚠️", dept: "ENG" },
+        { label: "Signal Outage", icon: "🚦", dept: "ENG" },
+        { label: "Disabled Vehicle", icon: "🔧", dept: "PD" }
     ];
 
     function init() {
         map = L.map('map', { zoomControl: false, attributionControl: false }).setView([32.315, -95.301], 13);
+        
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-        ROAD_GRAPH.forEach(road => {
-            const poly = L.polyline(road.path, {
-                color: '#10b981', weight: 8, opacity: 0.85
+        // Click to get Coordinates (For manual alignment tuning)
+        map.on('click', e => console.log(`Aligned Coord: [${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}]`));
+
+        ROAD_DATA.forEach(r => {
+            const poly = L.polyline(r.path, {
+                color: '#059669', weight: 7, opacity: 0.8, lineCap: 'round'
             }).addTo(map);
-            poly.bindTooltip(road.name, { sticky: true });
-            segments.push({ ...road, layer: poly });
+            segments.push({ ...r, layer: poly });
         });
 
-        runSimulation();
-        setInterval(runSimulation, REFRESH);
-        setInterval(updateClock, 1000);
+        runCycle();
+        setInterval(runCycle, CYCLE);
+        setInterval(updateTimer, 1000);
     }
 
-    function runSimulation() {
-        seconds = 90;
+    function runCycle() {
+        timeLeft = 90;
         
-        // Update Segment-Level Jams
+        // Accurate Congestion Shifts
         segments.forEach(s => {
-            const roll = Math.random();
-            let col = '#10b981'; // Flowing
-            if (roll > 0.8) col = '#ef4444'; // Red Jam
-            else if (roll > 0.55) col = '#f59e0b'; // Heavy Amber
+            const flow = Math.random();
+            let col = '#059669'; // Flowing
+            if (flow > 0.82) col = '#dc2626'; // Red Jam
+            else if (flow > 0.6) col = '#d97706'; // Heavy Amber
             s.layer.setStyle({ color: col });
         });
 
-        // Clear and Spawn Coordinate-Exact Incidents
+        // Clear Alerts
         alerts.forEach(a => map.removeLayer(a.marker));
         alerts = [];
         document.getElementById('feed').innerHTML = '';
 
-        for(let i=0; i<4; i++) spawnIncident();
+        for(let i=0; i<4; i++) spawnAlert();
     }
 
-    function spawnIncident() {
-        const road = ROAD_GRAPH[Math.floor(Math.random() * ROAD_GRAPH.length)];
-        const type = INCIDENT_TYPES[Math.floor(Math.random() * INCIDENT_TYPES.length)];
+    function spawnAlert() {
+        const road = ROAD_DATA[Math.floor(Math.random() * ROAD_DATA.length)];
+        const data = TYPES[Math.floor(Math.random() * TYPES.length)];
         
-        // Force Coordinate Accuracy: Snapping to an existing vertex in the road graph
+        // Snapping to the precise vertex points defined in ROAD_DATA
         const coord = road.path[Math.floor(Math.random() * road.path.length)];
         
         const marker = L.marker(coord, {
             icon: L.divIcon({
                 className: '',
-                html: `<div class="custom-pin pin-${type.dept}"><span>${type.icon}</span></div>`,
-                iconSize: [32, 32]
+                html: `<div class="precise-pin pin-${data.dept}"><span>${data.icon}</span></div>`,
+                iconSize: [26, 26]
             })
         });
 
         const card = document.createElement('div');
-        card.className = `card ${type.dept}`;
-        card.onclick = () => map.flyTo(coord, 15);
+        card.className = `card ${data.dept}`;
+        card.onclick = () => map.flyTo(coord, 16);
         card.innerHTML = `
-            <div class="card-top">
-                <span>UNIT: ${type.dept}</span>
-                <span>${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-            </div>
-            <div class="card-msg">${type.icon} ${type.label}</div>
-            <div style="font-size:0.75rem; color:#888; margin-bottom:5px;">${road.name}</div>
-            <div class="card-loc">COORD: ${coord[0].toFixed(5)}, ${coord[1].toFixed(5)}</div>
+            <div class="card-top"><span>${data.dept} UNIT</span><span>${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>
+            <div class="card-msg">${data.icon} ${data.label}</div>
+            <div class="card-loc">${road.name}</div>
         `;
 
-        const obj = { marker, dept: type.dept, element: card };
+        const obj = { marker, dept: data.dept, element: card };
         alerts.push(obj);
         document.getElementById('feed').prepend(card);
         sync(obj);
     }
 
-    function filterData(d) {
-        currentDept = d;
+    function filterData(f) {
+        currentFilter = f;
         document.querySelectorAll('.btn').forEach(b => {
-            b.classList.toggle('active', b.innerText.includes(d) || (d === 'ALL' && b.innerText === 'ALL UNITS'));
+            b.classList.toggle('active', b.innerText === f || (f === 'ALL' && b.innerText === 'ALL'));
         });
         alerts.forEach(sync);
     }
 
     function sync(obj) {
-        const visible = (currentDept === 'ALL' || obj.dept === currentDept);
-        if (visible) {
+        const show = (currentFilter === 'ALL' || obj.dept === currentFilter);
+        if (show) {
             obj.marker.addTo(map);
             obj.element.classList.remove('hidden');
         } else {
@@ -208,11 +219,11 @@
         }
     }
 
-    function updateClock() {
-        seconds--;
-        if (seconds < 0) seconds = 0;
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
+    function updateTimer() {
+        timeLeft--;
+        if (timeLeft < 0) timeLeft = 0;
+        const m = Math.floor(timeLeft / 60);
+        const s = timeLeft % 60;
         document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' + s : s}`;
     }
 
