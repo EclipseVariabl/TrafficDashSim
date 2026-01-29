@@ -1,508 +1,1250 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyler City Traffic Dashboard Simulation</title>
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<style>
-  body, html { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; }
-  #map { position:absolute; top:0; bottom:0; left:250px; right:250px; }
-  .panel { position:absolute; top:0; bottom:0; width:250px; overflow-y:auto; padding:10px; background:#0b1220; color:#fff; font-size:14px; }
-  #leftPanel { left:0; border-right: 1px solid #222; }
-  #rightPanel { right:0; border-left: 1px solid #222; }
-  h2 { margin-top:10px; font-size:16px; border-bottom:1px solid #444; padding-bottom:5px; }
-  .kpi { margin:5px 0; }
-  .report { margin:5px 0; padding:5px; background:#111; border-radius:5px; }
-  button { margin:3px; padding:4px 8px; border:none; border-radius:4px; cursor:pointer; background:#00c2ff; color:#0b1220; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tyler, TX Traffic Management System</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #2c3e50;
+            overflow: hidden;
+        }
+
+        #header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            padding: 12px 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #3182ce;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .seal {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 20px;
+            border: 3px solid #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header h1 {
+            font-size: 22px;
+            color: #ffffff;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+
+        .header-subtitle {
+            font-size: 12px;
+            color: #cbd5e0;
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: #3182ce;
+            color: #fff;
+            border: 1px solid #2c5282;
+        }
+
+        .btn-primary:hover {
+            background: #2c5282;
+            box-shadow: 0 2px 6px rgba(49, 130, 206, 0.4);
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: #fff;
+            border: 1px solid #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        #container {
+            display: flex;
+            height: calc(100vh - 80px);
+            background: #e2e8f0;
+        }
+
+        #left-panel {
+            width: 350px;
+            background: #ffffff;
+            border-right: 2px solid #cbd5e0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        #map {
+            flex: 1;
+            background: #f7fafc;
+            position: relative;
+        }
+
+        #right-panel {
+            width: 350px;
+            background: #ffffff;
+            border-left: 2px solid #cbd5e0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .panel-section {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .panel-section h2 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            border-left: 4px solid #3182ce;
+            padding-left: 12px;
+        }
+
+        .dept-filter {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .dept-btn {
+            padding: 10px 15px;
+            border: 1px solid #cbd5e0;
+            background: #f7fafc;
+            color: #2d3748;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            text-align: left;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dept-btn:before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border: 2px solid #cbd5e0;
+            border-radius: 2px;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .dept-btn.active {
+            border-color: #3182ce;
+            background: #ebf8ff;
+            color: #2c5282;
+        }
+
+        .dept-btn.active:before {
+            background: #3182ce;
+            border-color: #3182ce;
+        }
+
+        .dept-btn:hover {
+            background: #edf2f7;
+            border-color: #a0aec0;
+        }
+
+        #weather-info {
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e0;
+            font-size: 13px;
+        }
+
+        .weather-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 6px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .weather-stat:last-child {
+            border-bottom: none;
+        }
+
+        .weather-stat span:first-child {
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .weather-stat span:last-child {
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        #reports-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f7fafc;
+        }
+
+        .report-card {
+            background: #ffffff;
+            border-left: 4px solid;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-right: 1px solid #e2e8f0;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .report-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .report-card.severity-critical {
+            border-left-color: #e53e3e;
+            background: #fff5f5;
+        }
+
+        .report-card.severity-high {
+            border-left-color: #dd6b20;
+            background: #fffaf0;
+        }
+
+        .report-card.severity-medium {
+            border-left-color: #d69e2e;
+            background: #fffff0;
+        }
+
+        .report-card.severity-low {
+            border-left-color: #38a169;
+            background: #f0fff4;
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .report-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #2d3748;
+        }
+
+        .report-time {
+            font-size: 11px;
+            color: #718096;
+            background: #edf2f7;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+
+        .report-location {
+            font-size: 13px;
+            color: #3182ce;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .report-details {
+            font-size: 13px;
+            color: #4a5568;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .report-meta {
+            display: flex;
+            gap: 8px;
+            font-size: 11px;
+            color: #718096;
+            flex-wrap: wrap;
+        }
+
+        .report-badge {
+            background: #edf2f7;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            border: 1px solid #cbd5e0;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .legend {
+            padding: 15px;
+            background: #edf2f7;
+            border-radius: 6px;
+            font-size: 12px;
+            border: 1px solid #cbd5e0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            color: #4a5568;
+        }
+
+        .legend-color {
+            width: 40px;
+            height: 5px;
+            margin-right: 10px;
+            border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(49, 130, 206, 0.3);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #cbd5e0;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #edf2f7;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: #ffffff;
+            color: #2d3748;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 1px solid #e2e8f0;
+        }
+
+        .leaflet-popup-content {
+            margin: 15px;
+            font-size: 13px;
+        }
+
+        .leaflet-popup-tip {
+            background: #ffffff;
+        }
+
+        .popup-title {
+            font-weight: 600;
+            color: #2c5282;
+            margin-bottom: 10px;
+            font-size: 15px;
+            border-bottom: 2px solid #3182ce;
+            padding-bottom: 8px;
+        }
+
+        .popup-row {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .popup-label {
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .popup-value {
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            #left-panel, #right-panel {
+                width: 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #container {
+                flex-direction: column;
+            }
+            #left-panel {
+                width: 100%;
+                height: 30vh;
+                border-right: none;
+                border-bottom: 2px solid #cbd5e0;
+            }
+            #right-panel {
+                width: 100%;
+                height: 30vh;
+                border-left: none;
+                border-top: 2px solid #cbd5e0;
+            }
+            #map {
+                height: 40vh;
+            }
+        }
+    </style>
 </head>
 <body>
+    <div id="header">
+        <div class="header-left">
+            <div class="seal">TX</div>
+            <div class="header-title">
+                <h1>Tyler Traffic Management System</h1>
+                <div class="header-subtitle">City of Tyler, Texas • Real-Time Monitoring</div>
+            </div>
+        </div>
+        <div class="controls">
+            <button class="btn btn-primary" id="regenBtn">🔄 Regenerate</button>
+            <button class="btn btn-secondary" id="weatherBtn">🌤️ Weather</button>
+        </div>
+    </div>
 
-<!-- Left Panel: KPIs + Department Filter -->
-<div id="leftPanel" class="panel">
-  <h2>KPIs</h2>
-  <div class="kpi">Average Speed: <span id="avgSpeed">--</span></div>
-  <div class="kpi">Congested Segments: <span id="congested">--</span></div>
-  <div class="kpi">Travel Time Index: <span id="tti">--</span></div>
-  <div class="kpi">Active Alerts: <span id="alerts">--</span></div>
+    <div id="container">
+        <div id="left-panel">
+            <div class="panel-section">
+                <h2>Department Filters</h2>
+                <div class="dept-filter">
+                    <button class="dept-btn active" data-dept="all">All Departments</button>
+                    <button class="dept-btn" data-dept="PD">Police Department</button>
+                    <button class="dept-btn" data-dept="Fire">Fire Department</button>
+                    <button class="dept-btn" data-dept="Traffic">Traffic Division</button>
+                    <button class="dept-btn" data-dept="Streets">Streets & Maintenance</button>
+                    <button class="dept-btn" data-dept="Engineering">Engineering</button>
+                </div>
+            </div>
 
-  <h2>Department Filter</h2>
-  <div id="departmentButtons"></div>
-</div>
+            <div class="panel-section">
+                <h2>Weather Conditions</h2>
+                <div id="weather-info">
+                    <div class="weather-stat">
+                        <span>Condition:</span>
+                        <span id="weather-condition">Clear</span>
+                    </div>
+                    <div class="weather-stat">
+                        <span>Temperature:</span>
+                        <span id="weather-temp">72°F</span>
+                    </div>
+                    <div class="weather-stat">
+                        <span>Traffic Impact:</span>
+                        <span id="weather-impact">None</span>
+                    </div>
+                </div>
+            </div>
 
-<!-- Right Panel: Situation Reports -->
-<div id="rightPanel" class="panel">
-  <h2>Situation Reports</h2>
-  <div id="reports"></div>
-</div>
+            <div class="panel-section">
+                <h2>Traffic Legend</h2>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #26de81;"></div>
+                        <span>Free Flow (0-20%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ffd700;"></div>
+                        <span>Light Traffic (20-50%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ffa502;"></div>
+                        <span>Heavy Traffic (50-70%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff4757;"></div>
+                        <span>Severe Congestion (70%+)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<!-- Map -->
-<div id="map"></div>
+        <div id="map"></div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-// ---------------- BASE MAP ----------------
-const map = L.map('map').setView([32.351,-95.301], 13); // Centered on Tyler, TX
+        <div id="right-panel">
+            <div class="panel-section">
+                <h2>
+                    System Statistics
+                    <span id="last-update" style="font-size: 10px; color: #718096; font-weight: normal;"></span>
+                </h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-incidents">0</div>
+                        <div class="stat-label">Active Incidents</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-congestion">0%</div>
+                        <div class="stat-label">Avg Congestion</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-speed">0</div>
+                        <div class="stat-label">Avg Speed (mph)</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-alerts">0</div>
+                        <div class="stat-label">Critical Alerts</div>
+                    </div>
+                </div>
+            </div>
 
-// Add base tile layer (OpenStreetMap)
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+            <div class="panel-section" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
+                <h2 style="padding: 20px; padding-bottom: 10px; margin: 0;">Traffic Reports & Alerts</h2>
+                <div id="reports-container"></div>
+            </div>
+        </div>
+    </div>
 
-// ---------------- DEPARTMENT BUTTONS ----------------
-const departments = ["All", "Police","Fire","Traffic","Streets","Engineering"];
-const deptDiv = document.getElementById('departmentButtons');
-departments.forEach(dept => {
-  const btn = document.createElement('button');
-  btn.innerText = dept;
-  btn.onclick = () => {
-    alert("Department filter clicked: " + dept + "\n(Will filter traffic simulation in next steps)");
-  };
-  deptDiv.appendChild(btn);
-});
+    <script>
+        // Tyler, TX coordinates
+        const TYLER_CENTER = [32.3513, -95.3011];
+        
+        // Initialize map
+        const map = L.map('map', {
+            center: TYLER_CENTER,
+            zoom: 13,
+            zoomControl: true
+        });
 
-// Placeholder for layers
-let layers = [];
-</script>
+        // Light professional tile layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
 
+        // Road network data - segment by segment, coordinates connect
+        const roadNetwork = [
+            // Broadway Avenue (North-South major corridor)
+            {
+                corridor: "Broadway Ave",
+                segments: [
+                    { geometry: [[32.3850, -95.3011], [32.3800, -95.3011]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3800, -95.3011], [32.3750, -95.3011]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3750, -95.3011], [32.3700, -95.3011]], speed: 45, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3700, -95.3011], [32.3650, -95.3011]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.3011], [32.3600, -95.3011]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3600, -95.3011], [32.3550, -95.3011]], speed: 35, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3550, -95.3011], [32.3500, -95.3011]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3500, -95.3011], [32.3450, -95.3011]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3450, -95.3011], [32.3400, -95.3011]], speed: 35, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3400, -95.3011], [32.3350, -95.3011]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3350, -95.3011], [32.3300, -95.3011]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3300, -95.3011], [32.3250, -95.3011]], speed: 45, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Loop 323 (Eastern segment)
+            {
+                corridor: "Loop 323 East",
+                segments: [
+                    { geometry: [[32.3650, -95.2650], [32.3600, -95.2700]], speed: 60, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3600, -95.2700], [32.3550, -95.2750]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3550, -95.2750], [32.3500, -95.2800]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3500, -95.2800], [32.3450, -95.2850]], speed: 60, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3450, -95.2850], [32.3400, -95.2900]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3400, -95.2900], [32.3350, -95.2950]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3350, -95.2950], [32.3300, -95.3000]], speed: 60, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // Loop 323 (Southern segment)
+            {
+                corridor: "Loop 323 South",
+                segments: [
+                    { geometry: [[32.3300, -95.3000], [32.3250, -95.3050]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3250, -95.3050], [32.3200, -95.3100]], speed: 60, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3200, -95.3100], [32.3150, -95.3150]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3150, -95.3150], [32.3100, -95.3200]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3100, -95.3200], [32.3100, -95.3250]], speed: 60, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3100, -95.3250], [32.3100, -95.3300]], speed: 60, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Loop 323 (Western segment)
+            {
+                corridor: "Loop 323 West",
+                segments: [
+                    { geometry: [[32.3100, -95.3300], [32.3150, -95.3350]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3150, -95.3350], [32.3200, -95.3400]], speed: 60, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3200, -95.3400], [32.3250, -95.3450]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3250, -95.3450], [32.3300, -95.3500]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3300, -95.3500], [32.3350, -95.3550]], speed: 60, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // Loop 323 (Northern segment)
+            {
+                corridor: "Loop 323 North",
+                segments: [
+                    { geometry: [[32.3350, -95.3550], [32.3400, -95.3500]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3400, -95.3500], [32.3450, -95.3450]], speed: 60, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3450, -95.3450], [32.3500, -95.3400]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3500, -95.3400], [32.3550, -95.3350]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3550, -95.3350], [32.3600, -95.3300]], speed: 60, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3600, -95.3300], [32.3650, -95.3250]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.3250], [32.3650, -95.3200]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.3200], [32.3650, -95.3150]], speed: 60, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3650, -95.3150], [32.3650, -95.3100]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.3100], [32.3650, -95.3050]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.3050], [32.3650, -95.3000]], speed: 60, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3650, -95.3000], [32.3650, -95.2950]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.2950], [32.3650, -95.2900]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.2900], [32.3650, -95.2850]], speed: 60, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3650, -95.2850], [32.3650, -95.2800]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.2800], [32.3650, -95.2750]], speed: 60, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.2750], [32.3650, -95.2700]], speed: 60, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3650, -95.2700], [32.3650, -95.2650]], speed: 60, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // State Highway 31 (East-West)
+            {
+                corridor: "State Highway 31 West",
+                segments: [
+                    { geometry: [[32.3513, -95.3700], [32.3513, -95.3600]], speed: 55, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3513, -95.3600], [32.3513, -95.3500]], speed: 55, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3513, -95.3500], [32.3513, -95.3400]], speed: 55, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3513, -95.3400], [32.3513, -95.3300]], speed: 50, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3513, -95.3300], [32.3513, -95.3200]], speed: 45, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3513, -95.3200], [32.3513, -95.3100]], speed: 40, departments: ["PD", "Traffic"] }
+                ]
+            },
+            {
+                corridor: "State Highway 31 East",
+                segments: [
+                    { geometry: [[32.3513, -95.3011], [32.3513, -95.2900]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3513, -95.2900], [32.3513, -95.2800]], speed: 45, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3513, -95.2800], [32.3513, -95.2700]], speed: 50, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3513, -95.2700], [32.3513, -95.2600]], speed: 55, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3513, -95.2600], [32.3513, -95.2500]], speed: 55, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Cumberland Road
+            {
+                corridor: "Cumberland Rd",
+                segments: [
+                    { geometry: [[32.3700, -95.3300], [32.3650, -95.3250]], speed: 45, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3650, -95.3250], [32.3600, -95.3200]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3600, -95.3200], [32.3550, -95.3150]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3550, -95.3150], [32.3500, -95.3100]], speed: 40, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3500, -95.3100], [32.3450, -95.3050]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3450, -95.3050], [32.3400, -95.3000]], speed: 35, departments: ["PD", "Traffic", "Streets"] }
+                ]
+            },
+            // Old Jacksonville Highway
+            {
+                corridor: "Old Jacksonville Hwy",
+                segments: [
+                    { geometry: [[32.3700, -95.2700], [32.3650, -95.2750]], speed: 50, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3650, -95.2750], [32.3600, -95.2800]], speed: 50, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3600, -95.2800], [32.3550, -95.2850]], speed: 50, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3550, -95.2850], [32.3500, -95.2900]], speed: 45, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3500, -95.2900], [32.3450, -95.2950]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3450, -95.2950], [32.3400, -95.3000]], speed: 40, departments: ["PD", "Traffic", "Streets"] }
+                ]
+            },
+            // Gentry Parkway
+            {
+                corridor: "Gentry Pkwy",
+                segments: [
+                    { geometry: [[32.3400, -95.3400], [32.3400, -95.3300]], speed: 45, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3400, -95.3300], [32.3400, -95.3200]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3400, -95.3200], [32.3400, -95.3100]], speed: 45, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3400, -95.3100], [32.3400, -95.3000]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3400, -95.3000], [32.3400, -95.2900]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3400, -95.2900], [32.3400, -95.2800]], speed: 45, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // Downtown Grid - Erwin Street (East-West)
+            {
+                corridor: "Erwin St",
+                segments: [
+                    { geometry: [[32.3513, -95.3100], [32.3513, -95.3070]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3513, -95.3070], [32.3513, -95.3040]], speed: 30, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3513, -95.3040], [32.3513, -95.3011]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3513, -95.3011], [32.3513, -95.2980]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3513, -95.2980], [32.3513, -95.2950]], speed: 30, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // Downtown Grid - Ferguson Street (North-South)
+            {
+                corridor: "Ferguson St",
+                segments: [
+                    { geometry: [[32.3580, -95.3011], [32.3560, -95.3011]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3560, -95.3011], [32.3540, -95.3011]], speed: 30, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3540, -95.3011], [32.3520, -95.3011]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3520, -95.3011], [32.3500, -95.3011]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3500, -95.3011], [32.3480, -95.3011]], speed: 30, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // South Broadway
+            {
+                corridor: "S Broadway Ave",
+                segments: [
+                    { geometry: [[32.3250, -95.3011], [32.3200, -95.3011]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3200, -95.3011], [32.3150, -95.3011]], speed: 40, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3150, -95.3011], [32.3100, -95.3011]], speed: 35, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3100, -95.3011], [32.3050, -95.3011]], speed: 35, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Front Street
+            {
+                corridor: "Front St",
+                segments: [
+                    { geometry: [[32.3530, -95.3100], [32.3530, -95.3070]], speed: 25, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3530, -95.3070], [32.3530, -95.3040]], speed: 25, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3530, -95.3040], [32.3530, -95.3011]], speed: 25, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3530, -95.3011], [32.3530, -95.2980]], speed: 25, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // College Avenue
+            {
+                corridor: "College Ave",
+                segments: [
+                    { geometry: [[32.3600, -95.3100], [32.3580, -95.3080]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3580, -95.3080], [32.3560, -95.3060]], speed: 35, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3560, -95.3060], [32.3540, -95.3040]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3540, -95.3040], [32.3520, -95.3020]], speed: 35, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3520, -95.3020], [32.3500, -95.3000]], speed: 35, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Beckham Avenue
+            {
+                corridor: "Beckham Ave",
+                segments: [
+                    { geometry: [[32.3450, -95.3300], [32.3450, -95.3250]], speed: 35, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3450, -95.3250], [32.3450, -95.3200]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3450, -95.3200], [32.3450, -95.3150]], speed: 35, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3450, -95.3150], [32.3450, -95.3100]], speed: 35, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3450, -95.3100], [32.3450, -95.3050]], speed: 35, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Rice Road
+            {
+                corridor: "Rice Rd",
+                segments: [
+                    { geometry: [[32.3300, -95.3400], [32.3300, -95.3350]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3300, -95.3350], [32.3300, -95.3300]], speed: 40, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3300, -95.3300], [32.3300, -95.3250]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3300, -95.3250], [32.3300, -95.3200]], speed: 40, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3300, -95.3200], [32.3300, -95.3150]], speed: 40, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Troup Highway
+            {
+                corridor: "Troup Hwy",
+                segments: [
+                    { geometry: [[32.3200, -95.3500], [32.3200, -95.3450]], speed: 50, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3200, -95.3450], [32.3200, -95.3400]], speed: 50, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3200, -95.3400], [32.3200, -95.3350]], speed: 50, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3200, -95.3350], [32.3200, -95.3300]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3200, -95.3300], [32.3200, -95.3250]], speed: 45, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Paluxy Drive
+            {
+                corridor: "Paluxy Dr",
+                segments: [
+                    { geometry: [[32.3650, -95.2900], [32.3600, -95.2900]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3600, -95.2900], [32.3550, -95.2900]], speed: 40, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3550, -95.2900], [32.3500, -95.2900]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3500, -95.2900], [32.3450, -95.2900]], speed: 35, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            },
+            // Fifth Street
+            {
+                corridor: "Fifth St",
+                segments: [
+                    { geometry: [[32.3550, -95.3150], [32.3550, -95.3120]], speed: 30, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3550, -95.3120], [32.3550, -95.3090]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3550, -95.3090], [32.3550, -95.3060]], speed: 30, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3550, -95.3060], [32.3550, -95.3030]], speed: 30, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3550, -95.3030], [32.3550, -95.3000]], speed: 30, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Old Omen Road
+            {
+                corridor: "Old Omen Rd",
+                segments: [
+                    { geometry: [[32.3750, -95.3200], [32.3720, -95.3180]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3720, -95.3180], [32.3690, -95.3160]], speed: 45, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3690, -95.3160], [32.3660, -95.3140]], speed: 45, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3660, -95.3140], [32.3630, -95.3120]], speed: 40, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3630, -95.3120], [32.3600, -95.3100]], speed: 40, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // ESE Loop
+            {
+                corridor: "ESE Loop",
+                segments: [
+                    { geometry: [[32.3350, -95.2700], [32.3320, -95.2730]], speed: 55, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3320, -95.2730], [32.3290, -95.2760]], speed: 55, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3290, -95.2760], [32.3260, -95.2790]], speed: 55, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3260, -95.2790], [32.3230, -95.2820]], speed: 55, departments: ["PD", "Traffic", "Streets"] }
+                ]
+            },
+            // Toll Road
+            {
+                corridor: "Toll Rd",
+                segments: [
+                    { geometry: [[32.3800, -95.3400], [32.3770, -95.3370]], speed: 65, departments: ["PD", "Traffic", "Engineering"] },
+                    { geometry: [[32.3770, -95.3370], [32.3740, -95.3340]], speed: 65, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3740, -95.3340], [32.3710, -95.3310]], speed: 65, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3710, -95.3310], [32.3680, -95.3280]], speed: 65, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3680, -95.3280], [32.3650, -95.3250]], speed: 65, departments: ["PD", "Traffic"] }
+                ]
+            },
+            // Grande Boulevard
+            {
+                corridor: "Grande Blvd",
+                segments: [
+                    { geometry: [[32.3550, -95.3400], [32.3550, -95.3350]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3550, -95.3350], [32.3550, -95.3300]], speed: 40, departments: ["PD", "Traffic", "Streets"] },
+                    { geometry: [[32.3550, -95.3300], [32.3550, -95.3250]], speed: 40, departments: ["PD", "Traffic"] },
+                    { geometry: [[32.3550, -95.3250], [32.3550, -95.3200]], speed: 40, departments: ["PD", "Traffic", "Engineering"] }
+                ]
+            }
+        ];
+
+        // Simulation state
+        let simulationState = {
+            segments: [],
+            reports: [],
+            weather: {
+                condition: 'Clear',
+                temp: 72,
+                impact: 'None',
+                speedModifier: 1.0
+            },
+            weatherCircles: []
+        };
+
+        let trafficLayers = [];
+        let activeDepartments = new Set(['all']);
+
+        // Weather conditions
+        const weatherConditions = [
+            { condition: 'Clear', temp: 72, impact: 'None', speedModifier: 1.0 },
+            { condition: 'Light Rain', temp: 65, impact: 'Minor', speedModifier: 0.9 },
+            { condition: 'Heavy Rain', temp: 58, impact: 'Moderate', speedModifier: 0.7 },
+            { condition: 'Fog', temp: 68, impact: 'Moderate', speedModifier: 0.75 },
+            { condition: 'Thunderstorm', temp: 62, impact: 'Severe', speedModifier: 0.6 },
+            { condition: 'Partly Cloudy', temp: 70, impact: 'None', speedModifier: 0.98 },
+            { condition: 'Overcast', temp: 66, impact: 'Minor', speedModifier: 0.95 }
+        ];
+
+        // Initialize simulation
+        function initializeSimulation() {
+            // Flatten road network into segments
+            simulationState.segments = [];
+            roadNetwork.forEach(road => {
+                road.segments.forEach((seg, idx) => {
+                    simulationState.segments.push({
+                        corridor: road.corridor,
+                        geometry: seg.geometry,
+                        freeFlowSpeed: seg.speed,
+                        currentSpeed: seg.speed,
+                        departments: seg.departments,
+                        confidence: 0.95,
+                        segmentId: `${road.corridor}-${idx}`,
+                        congestionLevel: 0
+                    });
+                });
+            });
+
+            regenerateSimulation();
+        }
+
+        // Regenerate simulation
+        function regenerateSimulation() {
+            // Update weather randomly
+            const weather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
+            simulationState.weather = weather;
+            
+            // Clear old weather circles
+            simulationState.weatherCircles.forEach(circle => map.removeLayer(circle));
+            simulationState.weatherCircles = [];
+
+            // Add weather circles if not clear
+            if (weather.condition !== 'Clear' && weather.condition !== 'Partly Cloudy') {
+                const numCircles = Math.floor(Math.random() * 3) + 2;
+                for (let i = 0; i < numCircles; i++) {
+                    const lat = TYLER_CENTER[0] + (Math.random() - 0.5) * 0.15;
+                    const lng = TYLER_CENTER[1] + (Math.random() - 0.5) * 0.15;
+                    const radius = Math.random() * 2000 + 1000;
+                    
+                    let color = '#4299e1';
+                    if (weather.condition.includes('Thunder')) color = '#f56565';
+                    else if (weather.condition.includes('Heavy')) color = '#ed8936';
+                    else if (weather.condition.includes('Fog')) color = '#a0aec0';
+                    
+                    const circle = L.circle([lat, lng], {
+                        radius: radius,
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.15,
+                        weight: 2,
+                        opacity: 0.4
+                    }).addTo(map);
+                    
+                    circle.bindPopup(`<div class="popup-title">NWS/NOAA Weather Alert</div>
+                        <div class="popup-row"><span class="popup-label">Condition:</span><span class="popup-value">${weather.condition}</span></div>
+                        <div class="popup-row"><span class="popup-label">Radius:</span><span class="popup-value">${(radius/1000).toFixed(1)} km</span></div>
+                        <div class="popup-row"><span class="popup-label">Impact:</span><span class="popup-value">${weather.impact}</span></div>`);
+                    
+                    simulationState.weatherCircles.push(circle);
+                }
+            }
+
+            // Update UI
+            document.getElementById('weather-condition').textContent = weather.condition;
+            document.getElementById('weather-temp').textContent = `${weather.temp}°F`;
+            document.getElementById('weather-impact').textContent = weather.impact;
+
+            // Simulate traffic conditions
+            simulationState.segments.forEach(seg => {
+                // Base congestion (random)
+                let congestion = Math.random();
+                
+                // Weather impact
+                congestion *= (2 - simulationState.weather.speedModifier);
+                
+                // Time-based patterns (simulated rush hour)
+                const hour = new Date().getHours();
+                if ((hour >= 7 && hour <= 9) || (hour >= 16 && hour <= 18)) {
+                    congestion *= 1.5;
+                }
+
+                // Limit congestion
+                congestion = Math.min(congestion, 1);
+                
+                seg.congestionLevel = congestion;
+                seg.currentSpeed = seg.freeFlowSpeed * (1 - congestion * 0.7) * simulationState.weather.speedModifier;
+                seg.confidence = 0.85 + Math.random() * 0.15;
+            });
+
+            // Generate reports
+            generateReports();
+            
+            // Render traffic
+            renderTraffic();
+            
+            // Update stats
+            updateStatistics();
+            
+            // Update timestamp
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Generate traffic reports
+        function generateReports() {
+            simulationState.reports = [];
+            
+            const causes = [
+                'Vehicle collision',
+                'Stalled vehicle',
+                'Road construction',
+                'Heavy traffic volume',
+                'Traffic signal malfunction',
+                'Lane closure',
+                'Emergency vehicle activity',
+                'Disabled vehicle',
+                'Road debris',
+                'Special event',
+                'Weather conditions'
+            ];
+
+            const impacts = [
+                'Significant delays expected',
+                'Lane blocked',
+                'All lanes affected',
+                'Use alternate route',
+                'Expect 10-15 min delays',
+                'Minor slowdowns',
+                'Traffic backed up 0.5 miles',
+                'Reduced speed limit in effect',
+                'Right lane closed',
+                'Left lane closed'
+            ];
+
+            // Select high-congestion segments
+            const congestedSegments = simulationState.segments
+                .filter(seg => seg.congestionLevel > 0.4)
+                .sort((a, b) => b.congestionLevel - a.congestionLevel)
+                .slice(0, Math.floor(Math.random() * 8) + 5);
+
+            congestedSegments.forEach((seg, idx) => {
+                const severity = seg.congestionLevel > 0.8 ? 'critical' :
+                                seg.congestionLevel > 0.6 ? 'high' :
+                                seg.congestionLevel > 0.4 ? 'medium' : 'low';
+                
+                const cause = causes[Math.floor(Math.random() * causes.length)];
+                const impact = impacts[Math.floor(Math.random() * impacts.length)];
+                
+                const startPoint = seg.geometry[0];
+                const endPoint = seg.geometry[seg.geometry.length - 1];
+                
+                const duration = Math.floor(Math.random() * 45) + 15;
+                
+                simulationState.reports.push({
+                    id: `report-${Date.now()}-${idx}`,
+                    corridor: seg.corridor,
+                    location: `${seg.corridor} near ${startPoint[0].toFixed(4)}, ${startPoint[1].toFixed(4)}`,
+                    cause: cause,
+                    impact: impact,
+                    severity: severity,
+                    departments: seg.departments,
+                    confidence: seg.confidence,
+                    duration: `${duration} min`,
+                    timestamp: new Date(),
+                    segment: seg
+                });
+            });
+
+            renderReports();
+        }
+
+        // Render reports
+        function renderReports() {
+            const container = document.getElementById('reports-container');
+            container.innerHTML = '';
+
+            simulationState.reports.forEach(report => {
+                const card = document.createElement('div');
+                card.className = `report-card severity-${report.severity}`;
+                
+                const timeAgo = Math.floor((new Date() - report.timestamp) / 60000);
+                const timeStr = timeAgo === 0 ? 'Just now' : `${timeAgo} min ago`;
+                
+                card.innerHTML = `
+                    <div class="report-header">
+                        <div class="report-title">${report.cause}</div>
+                        <div class="report-time">${timeStr}</div>
+                    </div>
+                    <div class="report-location">📍 ${report.corridor}</div>
+                    <div class="report-details">${report.impact}</div>
+                    <div class="report-meta">
+                        <span class="report-badge">⏱️ ${report.duration}</span>
+                        <span class="report-badge">🎯 ${(report.confidence * 100).toFixed(0)}% confidence</span>
+                        <span class="report-badge">👥 ${report.departments.join(', ')}</span>
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => {
+                    const center = report.segment.geometry[Math.floor(report.segment.geometry.length / 2)];
+                    map.setView(center, 15);
+                });
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Get color based on congestion
+        function getCongestionColor(level) {
+            if (level < 0.2) return '#26de81';
+            if (level < 0.5) return '#ffd700';
+            if (level < 0.7) return '#ffa502';
+            return '#ff4757';
+        }
+
+        // Render traffic on map
+        function renderTraffic() {
+            // Clear existing layers
+            trafficLayers.forEach(layer => map.removeLayer(layer));
+            trafficLayers = [];
+
+            simulationState.segments.forEach(seg => {
+                // Filter by department
+                if (!activeDepartments.has('all')) {
+                    if (!seg.departments.some(dept => activeDepartments.has(dept))) {
+                        return;
+                    }
+                }
+
+                const color = getCongestionColor(seg.congestionLevel);
+                const weight = 4 + seg.congestionLevel * 4;
+
+                const line = L.polyline(seg.geometry, {
+                    color: color,
+                    weight: weight,
+                    opacity: 0.8,
+                    smoothFactor: 1
+                }).addTo(map);
+
+                const popupContent = `
+                    <div class="popup-title">${seg.corridor}</div>
+                    <div class="popup-row">
+                        <span class="popup-label">Current Speed:</span>
+                        <span class="popup-value">${Math.round(seg.currentSpeed)} mph</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Free Flow:</span>
+                        <span class="popup-value">${seg.freeFlowSpeed} mph</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Congestion:</span>
+                        <span class="popup-value">${(seg.congestionLevel * 100).toFixed(0)}%</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Departments:</span>
+                        <span class="popup-value">${seg.departments.join(', ')}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Confidence:</span>
+                        <span class="popup-value">${(seg.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                `;
+
+                line.bindPopup(popupContent);
+                trafficLayers.push(line);
+            });
+        }
+
+        // Update statistics
+        function updateStatistics() {
+            const totalSegments = simulationState.segments.length;
+            const avgCongestion = simulationState.segments.reduce((sum, seg) => sum + seg.congestionLevel, 0) / totalSegments;
+            const avgSpeed = simulationState.segments.reduce((sum, seg) => sum + seg.currentSpeed, 0) / totalSegments;
+            const criticalAlerts = simulationState.reports.filter(r => r.severity === 'critical').length;
+
+            document.getElementById('stat-incidents').textContent = simulationState.reports.length;
+            document.getElementById('stat-congestion').textContent = `${(avgCongestion * 100).toFixed(0)}%`;
+            document.getElementById('stat-speed').textContent = Math.round(avgSpeed);
+            document.getElementById('stat-alerts').textContent = criticalAlerts;
+        }
+
+        // Department filter
+        document.querySelectorAll('.dept-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const dept = btn.dataset.dept;
+                
+                if (dept === 'all') {
+                    activeDepartments.clear();
+                    activeDepartments.add('all');
+                    document.querySelectorAll('.dept-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                } else {
+                    activeDepartments.delete('all');
+                    document.querySelector('.dept-btn[data-dept="all"]').classList.remove('active');
+                    
+                    if (activeDepartments.has(dept)) {
+                        activeDepartments.delete(dept);
+                        btn.classList.remove('active');
+                    } else {
+                        activeDepartments.add(dept);
+                        btn.classList.add('active');
+                    }
+                    
+                    if (activeDepartments.size === 0) {
+                        activeDepartments.add('all');
+                        document.querySelector('.dept-btn[data-dept="all"]').classList.add('active');
+                    }
+                }
+                
+                renderTraffic();
+            });
+        });
+
+        // Event listeners
+        document.getElementById('regenBtn').addEventListener('click', regenerateSimulation);
+        document.getElementById('weatherBtn').addEventListener('click', () => {
+            const weather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
+            simulationState.weather = weather;
+            regenerateSimulation();
+        });
+
+        // Auto-update simulation every 30 seconds
+        setInterval(() => {
+            regenerateSimulation();
+        }, 30000);
+
+        // Initialize
+        initializeSimulation();
+    </script>
 </body>
 </html>
-<script>
-// ---------------- FULL TYLER ROAD NETWORK ----------------
-
-// Define segments: name, points, free-flow speed, departments
-const roadNetwork = [
-  // Major arterials
-// Broadway Ave North
-  { corridor:"Broadway Ave N", geom:[[32.3750,-95.3000],[32.3745,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
-  { corridor:"Broadway Ave N", geom:[[32.3745,-95.3000],[32.3740,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
-  { corridor:"Broadway Ave N", geom:[[32.3740,-95.3000],[32.3735,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
-  { corridor:"Broadway Ave N", geom:[[32.3735,-95.3000],[32.3730,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
-
-  // Loop 323 North
-  { corridor:"Loop 323 N", geom:[[32.3800,-95.3200],[32.3800,-95.3150]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
-  { corridor:"Loop 323 N", geom:[[32.3800,-95.3150],[32.3800,-95.3100]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
-  { corridor:"Loop 323 N", geom:[[32.3800,-95.3100],[32.3800,-95.3050]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
-
-  // SH-31 East
-  { corridor:"SH-31", geom:[[32.3700,-95.3400],[32.3700,-95.3350]], free:55, speed:55, departments:["Traffic","Engineering"], confidence:0.9 },
-  { corridor:"SH-31", geom:[[32.3700,-95.3350],[32.3700,-95.3300]], free:55, speed:55, departments:["Traffic","Engineering"], confidence:0.9 },
-  { corridor:"SH-31", geom:[[32.3700,-95.3300],[32.3700,-95.3250]], free:55, speed:55, departments:["Traffic","Engineering"], confidence:0.9 },
-
-  // Cumberland Rd (curved)
-  { corridor:"Cumberland Rd", geom:[[32.3600,-95.3100],[32.3595,-95.3095]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.75 },
-  { corridor:"Cumberland Rd", geom:[[32.3595,-95.3095],[32.3590,-95.3090]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.75 },
-  { corridor:"Cumberland Rd", geom:[[32.3590,-95.3090],[32.3585,-95.3085]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.75 },
-
-  // Fifth Ave
-  { corridor:"Fifth Ave", geom:[[32.3550,-95.3000],[32.3550,-95.2950]], free:35, speed:35, departments:["Traffic","Police"], confidence:0.7 },
-  { corridor:"Fifth Ave", geom:[[32.3550,-95.2950],[32.3550,-95.2900]], free:35, speed:35, departments:["Traffic","Police"], confidence:0.7 },
-
-  // Sixth Ave
-  { corridor:"Sixth Ave", geom:[[32.3540,-95.3000],[32.3540,-95.2950]], free:35, speed:35, departments:["Traffic","Police"], confidence:0.7 },
-  { corridor:"Sixth Ave", geom:[[32.3540,-95.2950],[32.3540,-95.2900]], free:35, speed:35, departments:["Traffic","Police"], confidence:0.7 },
-
-  // Greenwood Rd
-  { corridor:"Greenwood Rd", geom:[[32.3600,-95.3050],[32.3580,-95.3050]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.75 },
-
-  // Loop 323 South
-  { corridor:"Loop 323 S", geom:[[32.3450,-95.3200],[32.3450,-95.3150]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
-  { corridor:"Loop 323 S", geom:[[32.3450,-95.3150],[32.3450,-95.3100]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
-
-  // East Erwin St
-  { corridor:"East Erwin St", geom:[[32.3500,-95.3000],[32.3500,-95.2950]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.8 },
-
-  // West Erwin St
-  { corridor:"West Erwin St", geom:[[32.3550,-95.3050],[32.3550,-95.3000]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.8 },
-
-  // Loop 323 West
-  { corridor:"Loop 323 W", geom:[[32.3700,-95.3200],[32.3700,-95.3250]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
-  { corridor:"Loop 323 W", geom:[[32.3700,-95.3250],[32.3700,-95.3300]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
-
-  // South Broadway Ave
-  { corridor:"Broadway Ave S", geom:[[32.3450,-95.3000],[32.3460,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
-  { corridor:"Broadway Ave S", geom:[[32.3460,-95.3000],[32.3470,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
-
-  // Loop 323 Connector
-  { corridor:"Loop 323 Connector", geom:[[32.3550,-95.3100],[32.3550,-95.3050]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
-
-  // Additional downtown connector
-  { corridor:"Liberty Rd", geom:[[32.3560,-95.3000],[32.3550,-95.3000]], free:35, speed:35, departments:["Traffic","Streets"], confidence:0.7 },
-
-  // Bonus major road
-  { corridor:"Tyler St", geom:[[32.3580,-95.3050],[32.3560,-95.3030]], free:40, speed:40, departments:["Traffic","Police"], confidence:0.75 }
-
-// Build segment objects with upstream/downstream connectivity
-let segments = [];
-roadNetwork.forEach(r => {
-  for (let i = 0; i < r.points.length - 1; i++) {
-    segments.push({
-      corridor: r.name,
-      geom: [r.points[i], r.points[i + 1]],
-      free: r.free,
-      speed: r.free,
-      volume: Math.random(),
-      shock: 0,
-      departments: r.departments,
-      confidence: 0.6 + Math.random()*0.35,
-      upstream: [], // filled later
-      downstream: []
-    });
-  }
-});
-
-// Connect segments for traffic propagation (basic neighbor assignment)
-segments.forEach((seg,i) => {
-  for(let j=0;j<segments.length;j++){
-    if(i!==j){
-      // if end of this segment matches start of another, it's downstream
-      const end = seg.geom[seg.geom.length-1];
-      const start = segments[j].geom[0];
-      if(Math.abs(end[0]-start[0])<0.0005 && Math.abs(end[1]-start[1])<0.0005){
-        seg.downstream.push(segments[j]);
-        segments[j].upstream.push(seg);
-      }
-    }
-  }
-});
-
-// Debug: draw all segments faintly
-segments.forEach(seg=>{
-  L.polyline(seg.geom,{color:'#888',weight:2,opacity:0.3}).addTo(map);
-});
-
-console.log("Full Tyler road network initialized with " + segments.length + " segments.");
-</script>
-<script>
-// ---------------- DYNAMIC TRAFFIC SIMULATION ----------------
-
-// Clear previous congestion layers
-function clearLayers() {
-  layers.forEach(l => map.removeLayer(l));
-  layers = [];
-}
-
-// Update traffic for one cycle
-function simulateTraffic() {
-  clearLayers();
-  let reports = [];
-  let totalSpeed = 0, congested = 0, alerts = 0;
-
-  segments.forEach(seg => {
-    // Base traffic demand
-    let demand = 0.3 + Math.random() * 0.5;
-
-    // Apply upstream congestion
-    let upstreamImpact = 0;
-    seg.upstream.forEach(up => {
-      if (up.speed < 20) upstreamImpact += 5;
-    });
-
-    // Random incidents (will add proper simulation later)
-    let randomShock = Math.random() > 0.98 ? 15 : 0;
-
-    // Apply congestion/shock
-    seg.shock = seg.shock * 0.75 + upstreamImpact + randomShock;
-
-    // Compute new speed
-    seg.speed = Math.max(5, seg.free - seg.shock - demand*10);
-    totalSpeed += seg.speed;
-
-    // Determine congestion level
-    let level = seg.speed < 15 ? 2 : seg.speed < 25 ? 1 : 0;
-    if (level > 0) { congested++; alerts++; }
-
-    // Color coding
-    let color = level === 2 ? "#ff4d4d" : level === 1 ? "#ffb703" : "#2ec4b6";
-    let weight = level === 2 ? 8 : level === 1 ? 6 : 3;
-
-    // Draw segment on map
-    layers.push(L.polyline(seg.geom, { color, weight, opacity:0.95 }).addTo(map));
-
-    // Generate situation report
-    if(level > 0){
-      reports.push({
-        text: `${seg.corridor}: ${level === 2 ? "Heavy" : "Moderate"} congestion. Speed ${seg.speed.toFixed(0)} mph.`,
-        confidence: seg.confidence
-      });
-    }
-  });
-
-  // Update KPIs
-  document.getElementById("avgSpeed").innerText = (totalSpeed / segments.length).toFixed(1) + " mph";
-  document.getElementById("congested").innerText = congested;
-  document.getElementById("tti").innerText = (1 + congested / segments.length).toFixed(2);
-  document.getElementById("alerts").innerText = alerts;
-
-  // Update situation reports
-  const reportEl = document.getElementById("reports");
-  reportEl.innerHTML = "";
-  reports.slice(0, 12).forEach(r => {
-    reportEl.innerHTML += `<div class="report"><b>Waze Traffic Alert</b><br>${r.text}<br><small>Confidence: ${(r.confidence*100).toFixed(0)}%</small></div>`;
-  });
-}
-
-// ---------------- CONTINUOUS SIMULATION ----------------
-simulateTraffic(); // initial call
-setInterval(simulateTraffic, 6000); // update every 6 seconds
-</script>
-<script>
-// ---------------- WEATHER & INCIDENT SIMULATION ----------------
-
-// Weather zones (center + radius in degrees, intensity affects speed)
-let weatherZones = [
-  { center:[32.355,-95.310], radius:0.012, intensity:8, type:"Heavy Rain" },
-  { center:[32.340,-95.330], radius:0.015, intensity:6, type:"Wind Gusts" },
-  { center:[32.345,-95.290], radius:0.010, intensity:10, type:"Thunderstorm" }
-];
-
-// Draw weather zones on map
-weatherZones.forEach(zone=>{
-  L.circle(zone.center,{
-    color:'#4dabf7',
-    fillColor:'#4dabf7',
-    fillOpacity:0.2,
-    radius: zone.radius*10000
-  }).addTo(map);
-});
-
-// Incident array
-let incidents = [];
-
-// Spawn a random incident on a segment
-function spawnIncident() {
-  const seg = segments[Math.floor(Math.random()*segments.length)];
-  const types = ["Accident","Disabled Vehicle","Construction"];
-  const type = types[Math.floor(Math.random()*types.length)];
-  incidents.push({
-    segment: seg,
-    type: type,
-    active: true,
-    timer: 3 + Math.floor(Math.random()*4) // lasts 3-6 cycles
-  });
-}
-
-// ---------------- SIMULATION WITH WEATHER & INCIDENTS ----------------
-function simulateTrafficWithEvents() {
-  // Clear previous map lines
-  clearLayers();
-
-  let reports = [];
-  let totalSpeed = 0, congested = 0, alerts = 0;
-
-  segments.forEach(seg=>{
-    // Base demand
-    let demand = 0.3 + Math.random()*0.5;
-
-    // Upstream congestion
-    let upstreamImpact = 0;
-    seg.upstream.forEach(up=>{
-      if(up.speed < 20) upstreamImpact += 5;
-    });
-
-    // Random new incidents
-    if(Math.random() > 0.97) spawnIncident();
-
-    // Incident impact
-    let incidentImpact = 0;
-    incidents.forEach(inc=>{
-      if(inc.segment === seg && inc.active) incidentImpact += 15;
-    });
-
-    // Weather impact
-    let weatherImpact = 0;
-    weatherZones.forEach(zone=>{
-      const lat = (seg.geom[0][0]+seg.geom[1][0])/2;
-      const lng = (seg.geom[0][1]+seg.geom[1][1])/2;
-      const dist = Math.sqrt((lat-zone.center[0])**2 + (lng-zone.center[1])**2);
-      if(dist < zone.radius) weatherImpact += zone.intensity;
-    });
-
-    // Apply previous shock decay
-    seg.shock = seg.shock * 0.75 + upstreamImpact + incidentImpact + weatherImpact;
-
-    // Compute speed
-    seg.speed = Math.max(5, seg.free - seg.shock - demand*10);
-    totalSpeed += seg.speed;
-
-    // Determine congestion level
-    let level = seg.speed < 15 ? 2 : seg.speed < 25 ? 1 : 0;
-    if(level > 0){ congested++; alerts++; }
-
-    // Color coding
-    let color = level === 2 ? "#ff4d4d" : level === 1 ? "#ffb703" : "#2ec4b6";
-    let weight = level === 2 ? 8 : level === 1 ? 6 : 3;
-
-    layers.push(L.polyline(seg.geom,{color,weight,opacity:0.95}).addTo(map));
-
-    // Generate report
-    if(level > 0){
-      let causes = [];
-      if(weatherImpact>0) causes.push("Weather: "+weatherZones.find(z=>Math.sqrt(((seg.geom[0][0]+seg.geom[1][0])/2-z.center[0])**2+((seg.geom[0][1]+seg.geom[1][1])/2-z.center[1])**2)<z.radius).type);
-      if(incidentImpact>0) causes.push("Incident");
-      if(causes.length===0) causes.push("Demand/Downstream Constraint");
-
-      reports.push({
-        text:`${seg.corridor}: ${level===2?"Heavy":"Moderate"} congestion. Speed ${seg.speed.toFixed(0)} mph. Cause: ${causes.join(", ")}.`,
-        confidence: seg.confidence
-      });
-    }
-  });
-
-  // Update incident timers
-  incidents.forEach(inc=>{
-    if(inc.active){
-      inc.timer -= 1;
-      if(inc.timer <=0) inc.active=false;
-    }
-  });
-
-  // Update KPIs
-  document.getElementById("avgSpeed").innerText = (totalSpeed/segments.length).toFixed(1)+" mph";
-  document.getElementById("congested").innerText = congested;
-  document.getElementById("tti").innerText = (1+congested/segments.length).toFixed(2);
-  document.getElementById("alerts").innerText = alerts;
-
-  // Update reports
-  const reportEl = document.getElementById("reports");
-  reportEl.innerHTML = "";
-  reports.slice(0,12).forEach(r=>{
-    reportEl.innerHTML += `<div class="report"><b>Waze Traffic Alert</b><br>${r.text}<br><small>Confidence: ${(r.confidence*100).toFixed(0)}%</small></div>`;
-  });
-}
-
-// ---------------- RUN SIMULATION ----------------
-simulateTrafficWithEvents();
-setInterval(simulateTrafficWithEvents, 6000);
-</script>
-<script>
-// ---------------- DEPARTMENTAL FILTER FUNCTION ----------------
-function filterByDepartment(dept) {
-  clearLayers(); // remove all previous segment lines
-  let reports = [];
-  let totalSpeed = 0, congested = 0, alerts = 0;
-
-  segments.forEach(seg => {
-    // If the department filter is active, skip irrelevant segments
-    if(dept !== "All" && !seg.departments.includes(dept)) return;
-
-    // Compute congestion level
-    let level = seg.speed < 15 ? 2 : seg.speed < 25 ? 1 : 0;
-    if(level > 0) { congested++; alerts++; }
-
-    totalSpeed += seg.speed;
-
-    // Color coding for congestion
-    let color = level === 2 ? "#ff4d4d" : level === 1 ? "#ffb703" : "#2ec4b6";
-    let weight = level === 2 ? 8 : level === 1 ? 6 : 3;
-
-    // Draw segment
-    layers.push(L.polyline(seg.geom, {color, weight, opacity:0.95}).addTo(map));
-
-    // Add to report if congested
-    if(level > 0){
-      reports.push({
-        text: `${seg.corridor} [${dept}]: ${level===2?"Heavy":"Moderate"} congestion. Speed ${seg.speed.toFixed(0)} mph.`,
-        confidence: seg.confidence
-      });
-    }
-  });
-
-  // Update KPIs
-  document.getElementById("avgSpeed").innerText = (totalSpeed / segments.length).toFixed(1) + " mph";
-  document.getElementById("congested").innerText = congested;
-  document.getElementById("tti").innerText = (1 + congested / segments.length).toFixed(2);
-  document.getElementById("alerts").innerText = alerts;
-
-  // Update situation reports
-  const reportEl = document.getElementById("reports");
-  reportEl.innerHTML = "";
-  reports.slice(0,12).forEach(r=>{
-    reportEl.innerHTML += `<div class="report"><b>Department Filtered</b><br>${r.text}<br><small>Confidence: ${(r.confidence*100).toFixed(0)}%</small></div>`;
-  });
-}
-
-// ---------------- DEPARTMENT BUTTON HOOKS ----------------
-const deptDiv = document.getElementById("departmentButtons");
-deptDiv.innerHTML = ""; // clear previous placeholder
-
-const departments = ["All","Police","Fire","Traffic","Streets","Engineering"];
-departments.forEach(dept => {
-  const btn = document.createElement('button');
-  btn.innerText = dept;
-  btn.onclick = () => {
-    filterByDepartment(dept);
-  };
-  deptDiv.appendChild(btn);
-});
-</script>
-<script>
-// ---------------- PREDICTIVE CONGESTION ----------------
-function predictNextCycle() {
-  segments.forEach(seg=>{
-    // Basic forecast: if upstream is slow, segment likely slows
-    let upstreamAvg = 0;
-    seg.upstream.forEach(up=>upstreamAvg += up.speed);
-    if(seg.upstream.length>0) upstreamAvg /= seg.upstream.length;
-    
-    // Predicted speed decreases if upstream is congested
-    seg.predictedSpeed = Math.max(5, seg.speed - (Math.max(0,20-upstreamAvg)/2));
-  });
-}
-
-// ---------------- INTERACTIVE POPUPS ----------------
-function addSegmentPopups() {
-  clearLayers();
-  segments.forEach(seg=>{
-    // Determine congestion level
-    let level = seg.speed < 15 ? 2 : seg.speed < 25 ? 1 : 0;
-    let color = level===2?"#ff4d4d":level===1?"#ffb703":"#2ec4b6";
-    let weight = level===2?8:level===1?6:3;
-
-    const poly = L.polyline(seg.geom,{color,weight,opacity:0.95}).addTo(map);
-
-    // Build popup content
-    let popupHTML = `<b>${seg.corridor}</b><br>
-                     Current Speed: ${seg.speed.toFixed(1)} mph<br>
-                     Predicted Speed: ${seg.predictedSpeed.toFixed(1)} mph<br>
-                     Departments: ${seg.departments.join(", ")}<br>`;
-
-    // Check active incidents
-    const activeIncidents = incidents.filter(inc=>inc.segment===seg && inc.active);
-    if(activeIncidents.length>0){
-      popupHTML += `<b>Incidents:</b><br>`;
-      activeIncidents.forEach(inc=>{
-        popupHTML += `- ${inc.type}, Timer: ${inc.timer}<br>`;
-      });
-    }
-
-    // Check weather impact
-    const affectedWeather = weatherZones.filter(zone=>{
-      const lat = (seg.geom[0][0]+seg.geom[1][0])/2;
-      const lng = (seg.geom[0][1]+seg.geom[1][1])/2;
-      return Math.sqrt((lat-zone.center[0])**2 + (lng-zone.center[1])**2)<zone.radius;
-    });
-    if(affectedWeather.length>0){
-      popupHTML += `<b>Weather Impact:</b><br>`;
-      affectedWeather.forEach(z=>popupHTML += `- ${z.type}, Intensity: ${z.intensity}<br>`);
-    }
-
-    poly.bindPopup(popupHTML);
-    layers.push(poly);
-  });
-}
-
-// ---------------- FULL SIMULATION STEP ----------------
-function runFullSimulation() {
-  simulateTrafficWithEvents();  // update speeds with traffic, incidents, weather
-  predictNextCycle();            // calculate predicted speed for next cycle
-  addSegmentPopups();            // render map with interactive popups
-}
-
-// Run continuously every 6 seconds
-runFullSimulation();
-setInterval(runFullSimulation,6000);
-</script>
