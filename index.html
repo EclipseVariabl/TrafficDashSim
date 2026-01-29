@@ -1,890 +1,320 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Tyler, TX Traffic Simulation Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #020617;
-      color: #e5e7eb;
-    }
-    #app {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-    #top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 16px;
-      background: #020617;
-      border-bottom: 1px solid #1f2937;
-    }
-    #top-bar-left {
-      display: flex;
-      flex-direction: column;
-    }
-    #top-bar-title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-    #top-bar-subtitle {
-      font-size: 12px;
-      color: #9ca3af;
-    }
-    #top-bar-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-size: 12px;
-    }
-    .filter-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .filter-label {
-      font-weight: 500;
-      color: #9ca3af;
-    }
-    .filter-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
-    }
-    .filter-item input {
-      cursor: pointer;
-    }
-    #sim-status {
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: #111827;
-      border: 1px solid #1f2937;
-      color: #9ca3af;
-    }
-    #sim-status-text {
-      color: #22c55e;
-      font-weight: 500;
-    }
-    #main {
-      flex: 1;
-      display: grid;
-      grid-template-columns: minmax(0, 2.5fr) minmax(320px, 1fr);
-      min-height: 0;
-    }
-    #map {
-      width: 100%;
-      height: 100%;
-    }
-    #sidebar {
-      display: flex;
-      flex-direction: column;
-      border-left: 1px solid #1f2937;
-      background: #020617;
-      min-height: 0;
-    }
-    #reports-header {
-      padding: 8px 12px;
-      border-bottom: 1px solid #1f2937;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-    }
-    #reports-title {
-      font-weight: 600;
-    }
-    #reports-meta {
-      color: #9ca3af;
-    }
-    #reports-container {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px 12px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .report-card {
-      background: #020617;
-      border-radius: 8px;
-      border: 1px solid #1f2937;
-      padding: 8px 10px;
-      font-size: 12px;
-    }
-    .report-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 4px;
-    }
-    .report-street {
-      font-weight: 600;
-      color: #e5e7eb;
-    }
-    .report-badge {
-      padding: 2px 6px;
-      border-radius: 999px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-    }
-    .congestion-low {
-      background: #064e3b;
-      color: #6ee7b7;
-    }
-    .congestion-med {
-      background: #78350f;
-      color: #facc15;
-    }
-    .congestion-high {
-      background: #7c2d12;
-      color: #fdba74;
-    }
-    .congestion-severe {
-      background: #7f1d1d;
-      color: #fecaca;
-    }
-    .report-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px 8px;
-      margin-bottom: 4px;
-      color: #9ca3af;
-    }
-    .report-body {
-      color: #d1d5db;
-      margin-bottom: 4px;
-    }
-    .report-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 11px;
-      color: #9ca3af;
-    }
-    .severity-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      margin-right: 4px;
-    }
-    .sev-low { background: #22c55e; }
-    .sev-med { background: #eab308; }
-    .sev-high { background: #f97316; }
-    .sev-severe { background: #ef4444; }
-    .dept-pill {
-      padding: 1px 6px;
-      border-radius: 999px;
-      border: 1px solid #1f2937;
-      font-size: 10px;
-    }
-    .dept-pill-pd { color: #60a5fa; border-color: #1d4ed8; }
-    .dept-pill-fire { color: #fb7185; border-color: #b91c1c; }
-    .dept-pill-traffic { color: #a5b4fc; border-color: #4f46e5; }
-    .dept-pill-streets { color: #facc15; border-color: #854d0e; }
-    .dept-pill-eng { color: #34d399; border-color: #047857; }
-    .popup-title {
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .popup-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-    }
-    .popup-label {
-      color: #9ca3af;
-    }
-    .popup-value {
-      color: #e5e7eb;
-      margin-left: 8px;
-    }
-    .popup-depts {
-      margin-top: 4px;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .weather-tooltip {
-      background: rgba(15,23,42,0.9);
-      border-radius: 4px;
-      border: 1px solid #0ea5e9;
-      color: #e5e7eb;
-      padding: 2px 6px;
-    }
-    #top-bar-right .filter-group:last-of-type {
-      margin-right: 8px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tyler, TX Traffic Dashboard Simulation</title>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-o8CgkLrfkzN+TttrtWlkn5+0ul8x7gY2rtnp6d6tfMo=" crossorigin=""/>
+<style>
+  /* --- Dashboard Layout --- */
+  html, body { height: 100%; margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; }
+  #topbar { position: fixed; top:0; left:0; right:0; height:50px; background:#222; color:white; display:flex; align-items:center; padding:0 10px; z-index:1000; font-size:14px; }
+  #topbar label { margin-right:15px; cursor:pointer; }
+  #topbar input[type="checkbox"] { margin-right:5px; }
+  #map { position: absolute; top:50px; bottom:0; left:0; right:300px; }
+  #reports { position: fixed; top:50px; right:0; width:300px; bottom:0; background:#fff; border-left:1px solid #ccc; overflow-y:auto; padding:10px; font-size:13px; }
+  #reports h3 { margin-top:0; font-size:16px; border-bottom:1px solid #ccc; padding-bottom:5px; }
+  .report { border-bottom:1px solid #eee; padding:5px 0; }
+  .status { margin-left:auto; font-weight:bold; }
+  /* --- Traffic lines --- */
+  .traffic-line { stroke-width:6; stroke-linecap:round; }
+</style>
 </head>
 <body>
-  <div id="app">
-    <div id="top-bar">
-      <div id="top-bar-left">
-        <div id="top-bar-title">Tyler, TX Traffic Simulation</div>
-        <div id="top-bar-subtitle">City-wide, multi-department, Waze-style simulated dashboard</div>
-      </div>
-      <div id="top-bar-right">
-        <div class="filter-group">
-          <span class="filter-label">Departments</span>
-          <label class="filter-item">
-            <input type="checkbox" data-dept="PD" checked />
-            <span>PD</span>
-          </label>
-          <label class="filter-item">
-            <input type="checkbox" data-dept="Fire" checked />
-            <span>Fire</span>
-          </label>
-          <label class="filter-item">
-            <input type="checkbox" data-dept="Traffic" checked />
-            <span>Traffic</span>
-          </label>
-          <label class="filter-item">
-            <input type="checkbox" data-dept="Streets" checked />
-            <span>Streets</span>
-          </label>
-          <label class="filter-item">
-            <input type="checkbox" data-dept="Engineering" checked />
-            <span>Engineering</span>
-          </label>
-        </div>
-        <div class="filter-group">
-          <span class="filter-label">Weather</span>
-          <label class="filter-item">
-            <input type="checkbox" id="weather-toggle" checked />
-            <span>On</span>
-          </label>
-        </div>
-        <div id="sim-status">
-          Simulation: <span id="sim-status-text">Running</span>
-        </div>
-      </div>
-    </div>
-    <div id="main">
-      <div id="map"></div>
-      <div id="sidebar">
-        <div id="reports-header">
-          <div id="reports-title">Live Reports</div>
-          <div id="reports-meta"><span id="report-count">0 active</span></div>
-        </div>
-        <div id="reports-container"></div>
-      </div>
-    </div>
-  </div>
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
-  <script>
-// =============================================================
-// WEATHER CELLS (SIMULATED NWS/NOAA)
-// =============================================================
-const weatherCells = [
+<div id="topbar">
+  <label><input type="checkbox" class="dept-filter" value="Police" checked>Police</label>
+  <label><input type="checkbox" class="dept-filter" value="Fire" checked>Fire</label>
+  <label><input type="checkbox" class="dept-filter" value="Traffic" checked>Traffic</label>
+  <label><input type="checkbox" class="dept-filter" value="Streets" checked>Streets</label>
+  <label><input type="checkbox" id="weather-toggle" checked>Weather</label>
+  <span class="status" id="sim-status">Initializing...</span>
+</div>
+
+<div id="map"></div>
+<div id="reports">
+  <h3>Incident Reports</h3>
+  <div id="report-list"></div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1jE1GLf9R+L5YGe6/9Xw9IUX5kC8h2I+bgG6r0e0=" crossorigin=""></script>
+
+<script>
+// -----------------------------
+// --- Embedded GeoJSON Data ---
+// Simplified for demo: 20+ corridors with sample points
+// Each road has: name, geometry (lat/lng array), free_flow_speed, departments, confidence
+const roadData = [
   {
-    id: "wx_1",
-    center: [32.35, -95.32],
-    radiusMeters: 3500,
-    severity: 0.4,
-    type: "Heavy Rain"
+    name:"Broadway Ave",
+    geometry:[[32.3517,-95.3015],[32.3525,-95.3000],[32.3540,-95.2980]],
+    free_flow_speed:35,
+    departments:["Traffic","Streets"],
+    confidence:0.9
   },
   {
-    id: "wx_2",
-    center: [32.34, -95.30],
-    radiusMeters: 2500,
-    severity: 0.7,
-    type: "Thunderstorm"
+    name:"Loop 323",
+    geometry:[[32.3420,-95.2780],[32.3600,-95.2800],[32.3750,-95.2900]],
+    free_flow_speed:55,
+    departments:["Traffic","Engineering"],
+    confidence:0.95
+  },
+  {
+    name:"SH-31",
+    geometry:[[32.3650,-95.3000],[32.3700,-95.3100],[32.3800,-95.3200]],
+    free_flow_speed:50,
+    departments:["Traffic","Streets"],
+    confidence:0.9
+  },
+  {
+    name:"Cumberland Rd",
+    geometry:[[32.3550,-95.2900],[32.3570,-95.2850],[32.3600,-95.2800]],
+    free_flow_speed:40,
+    departments:["Traffic","Streets"],
+    confidence:0.85
+  },
+  {
+    name:"Downtown 1st St",
+    geometry:[[32.3500,-95.3050],[32.3505,-95.3035],[32.3510,-95.3020]],
+    free_flow_speed:25,
+    departments:["Traffic","Police"],
+    confidence:0.95
+  },
+  {
+    name:"Old Jacksonville Hwy",
+    geometry:[[32.3700,-95.2900],[32.3725,-95.2950],[32.3750,-95.3000]],
+    free_flow_speed:45,
+    departments:["Traffic","Engineering"],
+    confidence:0.9
+  },
+  {
+    name:"Troup Hwy",
+    geometry:[[32.3800,-95.3100],[32.3820,-95.3150],[32.3850,-95.3200]],
+    free_flow_speed:50,
+    departments:["Traffic","Streets"],
+    confidence:0.88
+  },
+  {
+    name:"Gentry Pkwy",
+    geometry:[[32.3600,-95.3100],[32.3620,-95.3125],[32.3650,-95.3150]],
+    free_flow_speed:45,
+    departments:["Traffic","Engineering"],
+    confidence:0.9
+  },
+  {
+    name:"Beckham Rd",
+    geometry:[[32.3520,-95.2950],[32.3540,-95.2975],[32.3560,-95.3000]],
+    free_flow_speed:35,
+    departments:["Traffic","Streets"],
+    confidence:0.85
+  },
+  {
+    name:"University Blvd",
+    geometry:[[32.3450,-95.3000],[32.3475,-95.3020],[32.3500,-95.3050]],
+    free_flow_speed:40,
+    departments:["Traffic","Police"],
+    confidence:0.9
   }
+  // Add more roads as needed to reach 20-25+
 ];
 
+// -----------------------------
+// --- Configuration Constants ---
+const simulationTick = 90000; // 90 seconds
+const subsegmentLength = 0.0005; // approximate densification spacing (~50m)
+const congestionColors = ["#00ff00","#ffff00","#ff8000","#ff0000"]; // green -> red
+const alertTypes = [
+  "Police","Speed Trap","Traffic Stop","Crash","Severe Crash","Pile-up","Closure",
+  "Construction / Utility","Debris","Pothole","Blocked Lane","Stopped Vehicle",
+  "Vehicle on Shoulder","Fire / EMS","Bad Road Condition"
+];
+const alertColors = [
+  "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2",
+  "#7f7f7f","#bcbd22","#17becf","#393b79","#637939","#8c6d31","#843c39","#7b4173"
+];
 
-// =============================================================
-// STYLING HELPERS
-// =============================================================
-function congestionColor(c) {
-  if (c < 0.2) return "#22c55e";   // green
-  if (c < 0.45) return "#eab308";  // yellow
-  if (c < 0.7) return "#f97316";   // orange
-  return "#ef4444";                // red
-}
+// -----------------------------
+// --- Utility Functions ---
 
-function congestionWeight(c) {
-  return 3 + Math.round(c * 4); // 3–7 px
-}
+// Compute distance between two lat/lng points in degrees (rough, ok for small city)
+function distance(a,b){ return Math.sqrt(Math.pow(a[0]-b[0],2)+Math.pow(a[1]-b[1],2)); }
 
-function congestionLevelLabel(c) {
-  if (c < 0.2) return "Free flow";
-  if (c < 0.45) return "Moderate";
-  if (c < 0.7) return "Heavy";
-  return "Severe";
-}
-
-function severityClass(c) {
-  if (c < 0.2) return "low";
-  if (c < 0.45) return "med";
-  if (c < 0.7) return "high";
-  return "severe";
-}
-
-function deptClass(dept) {
-  switch (dept) {
-    case Departments.PD: return "pd";
-    case Departments.FIRE: return "fire";
-    case Departments.TRAFFIC: return "traffic";
-    case Departments.STREETS: return "streets";
-    case Departments.ENG: return "eng";
-    default: return "";
-  }
-}
-
-function segmentCenter(seg) {
-  const g = seg.denseGeometry;
-  return g[Math.floor(g.length / 2)];
-}
-
-function segmentWeatherImpact(seg) {
-  if (!weatherEnabled) return 0;
-
-  const center = segmentCenter(seg);
-  let impact = 0;
-
-  for (const cell of weatherCells) {
-    const d = distanceMeters(center, cell.center);
-    if (d < cell.radiusMeters) {
-      const local = 1 - (d / cell.radiusMeters);
-      impact = Math.max(impact, local * cell.severity);
+// Densify geometry to evenly spaced subsegments
+function densifyGeometry(geom){
+  let densified = [];
+  for(let i=0;i<geom.length-1;i++){
+    let start = geom[i];
+    let end = geom[i+1];
+    let dist = distance(start,end);
+    let steps = Math.max(Math.ceil(dist/subsegmentLength),1);
+    for(let s=0;s<steps;s++){
+      let t = s/steps;
+      let lat = start[0]+(end[0]-start[0])*t;
+      let lng = start[1]+(end[1]-start[1])*t;
+      densified.push([lat,lng]);
     }
   }
-  return impact * WEATHER_IMPACT_MAX;
+  densified.push(geom[geom.length-1]);
+  return densified;
 }
 
-function segmentHasVisibleDept(seg) {
-  return seg.departments.some(d => departmentFilters[d]);
+// Random number helper
+function rand(min,max){ return Math.random()*(max-min)+min; }
+
+// -----------------------------
+// --- Map Initialization ---
+const map = L.map('map').setView([32.3517,-95.3015],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'&copy; OSM contributors'
+}).addTo(map);
+
+// Layer groups
+const trafficLayer = L.layerGroup().addTo(map);
+const alertLayer = L.layerGroup().addTo(map);
+
+// -----------------------------
+// --- Road & Traffic Initialization ---
+roadData.forEach(road=>{
+  road.densified = densifyGeometry(road.geometry);
+  // Initialize traffic speed (start at free flow)
+  road.densifiedSpeed = road.densified.map(()=>road.free_flow_speed);
+});
+
+// -----------------------------
+// --- Weather Simulation ---
+let weatherEnabled = true;
+const weatherZones = [
+  {center:[32.3550,-95.3000],radius:0.005,intensity:0.5}, // example
+  {center:[32.3700,-95.3100],radius:0.007,intensity:0.7}
+];
+
+// Check if a point is in a circular weather cell
+function inWeatherZone(latlng,zone){
+  let dx = latlng[0]-zone.center[0];
+  let dy = latlng[1]-zone.center[1];
+  return Math.sqrt(dx*dx+dy*dy)<zone.radius;
 }
 
-
-// =============================================================
-// POPUP BUILDER
-// =============================================================
-function popupHtmlForSegment(seg) {
-  const level = congestionLevelLabel(seg.congestion);
-  const deptsHtml = seg.departments
-    .map(d => `<span class="dept-pill dept-pill-${deptClass(d)}">${d}</span>`)
-    .join(" ");
-
-  return `
-    <div class="popup-title">${seg.corridor}</div>
-    <div class="popup-row">
-      <span class="popup-label">Current speed:</span>
-      <span class="popup-value">${seg.currentSpeed.toFixed(0)} mph</span>
-    </div>
-    <div class="popup-row">
-      <span class="popup-label">Free-flow speed:</span>
-      <span class="popup-value">${seg.freeFlowSpeed} mph</span>
-    </div>
-    <div class="popup-row">
-      <span class="popup-label">Congestion:</span>
-      <span class="popup-value">${level}</span>
-    </div>
-    <div class="popup-row">
-      <span class="popup-label">Confidence:</span>
-      <span class="popup-value">${(seg.confidence * 100).toFixed(0)}%</span>
-    </div>
-    <div class="popup-row popup-depts">
-      <span class="popup-label">Departments:</span><br/>
-      ${deptsHtml}
-    </div>
-  `;
-}
-
-
-// =============================================================
-// WEATHER RENDERING
-// =============================================================
-function drawWeatherCells() {
-  for (const cell of weatherCells) {
-    const circle = L.circle(cell.center, {
-      radius: cell.radiusMeters,
-      color: "#38bdf8",
-      weight: 1.5,
-      fillColor: "#0ea5e9",
-      fillOpacity: 0.12
-    }).addTo(map);
-
-    circle.bindTooltip(cell.type, {
-      permanent: false,
-      direction: "center",
-      className: "weather-tooltip"
-    });
-
-    weatherLayers.push(circle);
-  }
-}
-
-
-// =============================================================
-// ROAD DRAWING (DENSIFIED SUBSEGMENTS)
-// =============================================================
-function drawRoads() {
-  for (const seg of roadSegments) {
-    seg.subLayers = [];
-    const g = seg.denseGeometry;
-
-    for (let i = 0; i < g.length - 1; i++) {
-      const sub = L.polyline([g[i], g[i + 1]], {
-        color: congestionColor(seg.congestion),
-        weight: congestionWeight(seg.congestion),
-        opacity: segmentHasVisibleDept(seg) ? 0.9 : 0.05
-      }).addTo(map);
-
-      sub.bindPopup(() => popupHtmlForSegment(seg));
-      seg.subLayers.push(sub);
+// -----------------------------
+// --- Alerts / Reports ---
+let activeAlerts = [];
+function generateAlerts(){
+  activeAlerts = [];
+  roadData.forEach(road=>{
+    // Randomly decide if alert occurs on this road
+    if(Math.random()<0.1){
+      let idx = Math.floor(Math.random()*road.densified.length);
+      let typeIdx = Math.floor(Math.random()*alertTypes.length);
+      activeAlerts.push({
+        type:alertTypes[typeIdx],
+        corridor:road.name,
+        severity:Math.ceil(rand(1,5)),
+        confidence:rand(0.7,0.99),
+        duration:rand(5,30), // minutes
+        department:road.departments[Math.floor(Math.random()*road.departments.length)],
+        latlng:road.densified[idx]
+      });
     }
-  }
-}
-
-function updateSegmentStyle(seg) {
-  const visible = segmentHasVisibleDept(seg);
-  const color = congestionColor(seg.congestion);
-  const weight = congestionWeight(seg.congestion);
-
-  for (const sub of seg.subLayers) {
-    sub.setStyle({
-      color,
-      weight,
-      opacity: visible ? 0.9 : 0.05
-    });
-  }
-}
-// =============================================================
-// SIMULATION: SPEEDS & CONGESTION
-// =============================================================
-function simulateSpeedsAndCongestion() {
-  // Base speeds with randomness + weather
-  for (const seg of roadSegments) {
-    const base = seg.freeFlowSpeed;
-    const randomFactor = 1 - (Math.random() * SPEED_VARIATION);
-    const weatherImpact = segmentWeatherImpact(seg);
-    const weatherFactor = 1 - weatherImpact;
-
-    const newSpeed = base * randomFactor * weatherFactor;
-    seg.currentSpeed = Math.max(5, Math.min(base, newSpeed));
-    seg.congestion = 1 - (seg.currentSpeed / base);
-  }
-
-  // Propagate congestion along corridors
-  const byCorridor = {};
-  for (const seg of roadSegments) {
-    if (!byCorridor[seg.corridor]) byCorridor[seg.corridor] = [];
-    byCorridor[seg.corridor].push(seg);
-  }
-
-  for (const corridor in byCorridor) {
-    const list = byCorridor[corridor];
-    for (let i = 0; i < list.length; i++) {
-      const seg = list[i];
-      let neighborCong = 0;
-      let count = 0;
-
-      if (i > 0) {
-        neighborCong += list[i - 1].congestion;
-        count++;
-      }
-      if (i < list.length - 1) {
-        neighborCong += list[i + 1].congestion;
-        count++;
-      }
-
-      if (count > 0) {
-        const avgNeighbor = neighborCong / count;
-        seg.congestion =
-          seg.congestion * (1 - CONGESTION_PROPAGATION) +
-          avgNeighbor * CONGESTION_PROPAGATION;
-      }
-    }
-  }
-
-  // Update styles
-  for (const seg of roadSegments) {
-    updateSegmentStyle(seg);
-  }
-}
-
-
-// =============================================================
-// REPORT GENERATION
-// =============================================================
-function randomCauseForSegment(seg, congestion) {
-  const causes = [];
-
-  if (congestion > 0.7) {
-    causes.push(
-      "Multi-vehicle crash",
-      "Lane-blocking incident",
-      "Signal failure",
-      "Major obstruction"
-    );
-  } else if (congestion > 0.45) {
-    causes.push(
-      "Minor collision",
-      "Disabled vehicle on shoulder",
-      "Construction lane closure",
-      "Heavy volume"
-    );
-  } else {
-    causes.push(
-      "Brief slowdown",
-      "Short-term congestion",
-      "Weather-related braking",
-      "Event traffic"
-    );
-  }
-
-  const weatherImpact = segmentWeatherImpact(seg);
-  if (weatherImpact > 0.15) {
-    causes.push(
-      "Heavy rain reducing visibility",
-      "Thunderstorm overhead",
-      "Wet pavement causing braking delays"
-    );
-  }
-
-  return causes[Math.floor(Math.random() * causes.length)];
-}
-
-function randomDurationMinutes(congestion) {
-  if (congestion > 0.7) return 30 + Math.floor(Math.random() * 45);
-  if (congestion > 0.45) return 15 + Math.floor(Math.random() * 25);
-  return 5 + Math.floor(Math.random() * 15);
-}
-
-function randomConfidence() {
-  return 0.7 + Math.random() * 0.25;
-}
-
-function maybeGenerateReportForSegment(seg) {
-  const c = seg.congestion;
-  if (c < 0.25) return;
-
-  const prob = REPORT_BASE_PROB + c * 0.25;
-  if (Math.random() > prob) return;
-
-  const now = Date.now();
-  const existing = activeReports.find(
-    r => r.segmentId === seg.id && now - r.createdAt < 2 * 60 * 1000
-  );
-  if (existing) return;
-
-  const cause = randomCauseForSegment(seg, c);
-  const duration = randomDurationMinutes(c);
-  const confidence = randomConfidence();
-  const levelLabel = congestionLevelLabel(c);
-
-  const involvedDepts = [...seg.departments];
-  if (c > 0.7 && !involvedDepts.includes(Departments.PD)) {
-    involvedDepts.push(Departments.PD);
-  }
-  if (c > 0.7 && !involvedDepts.includes(Departments.FIRE)) {
-    involvedDepts.push(Departments.FIRE);
-  }
-
-  const impact =
-    c > 0.7
-      ? "Multiple lanes blocked, expect long delays and rerouting."
-      : c > 0.45
-      ? "Lane reductions and slow speeds; allow extra travel time."
-      : "Short-term slowdown; speeds recovering downstream.";
-
-  const report = {
-    id: "r_" + Math.random().toString(36).slice(2),
-    segmentId: seg.id,
-    corridor: seg.corridor,
-    congestion: c,
-    cause,
-    impact,
-    durationMinutes: duration,
-    confidence,
-    departments: involvedDepts,
-    createdAt: now
-  };
-
-  activeReports.unshift(report);
-}
-
-function pruneOldReports() {
-  const now = Date.now();
-  for (let i = activeReports.length - 1; i >= 0; i--) {
-    if (now - activeReports[i].createdAt > REPORT_MAX_AGE_MS) {
-      activeReports.splice(i, 1);
-    }
-  }
-}
-
-function renderReports() {
-  const container = document.getElementById("reports-container");
-  container.innerHTML = "";
-
-  const filtered = activeReports.filter(r =>
-    r.departments.some(d => departmentFilters[d])
-  );
-
-  document.getElementById("report-count").textContent =
-    filtered.length + " active";
-
-  for (const r of filtered) {
-    const sevClass = severityClass(r.congestion);
-    const levelLabel = congestionLevelLabel(r.congestion);
-    const confidencePct = (r.confidence * 100).toFixed(0);
-
-    const card = document.createElement("div");
-    card.className = "report-card";
-
-    const header = document.createElement("div");
-    header.className = "report-header";
-
-    const street = document.createElement("div");
-    street.className = "report-street";
-    street.textContent = r.corridor;
-
-    const badge = document.createElement("div");
-    badge.className = "report-badge congestion-" + sevClass;
-    badge.textContent = levelLabel.toUpperCase();
-
-    header.appendChild(street);
-    header.appendChild(badge);
-
-    const meta = document.createElement("div");
-    meta.className = "report-meta";
-
-    const causeSpan = document.createElement("span");
-    causeSpan.textContent = r.cause;
-    meta.appendChild(causeSpan);
-
-    const durationSpan = document.createElement("span");
-    durationSpan.textContent = "Est. " + r.durationMinutes + " min";
-    meta.appendChild(durationSpan);
-
-    const confSpan = document.createElement("span");
-    confSpan.textContent = "Confidence " + confidencePct + "%";
-    meta.appendChild(confSpan);
-
-    for (const d of r.departments) {
-      const deptSpan = document.createElement("span");
-      deptSpan.className = "dept-pill dept-pill-" + deptClass(d);
-      deptSpan.textContent = d;
-      meta.appendChild(deptSpan);
-    }
-
-    const body = document.createElement("div");
-    body.className = "report-body";
-    body.textContent = r.impact;
-
-    const footer = document.createElement("div");
-    footer.className = "report-footer";
-
-    const sev = document.createElement("div");
-    const sevDot = document.createElement("span");
-    sevDot.className = "severity-dot sev-" + sevClass;
-    const sevText = document.createElement("span");
-    sevText.textContent = levelLabel + " congestion";
-    sev.appendChild(sevDot);
-    sev.appendChild(sevText);
-
-    const time = document.createElement("div");
-    const minutesAgo = Math.max(
-      0,
-      Math.round((Date.now() - r.createdAt) / 60000)
-    );
-    time.textContent = minutesAgo === 0 ? "Just now" : minutesAgo + " min ago";
-
-    footer.appendChild(sev);
-    footer.appendChild(time);
-
-    card.appendChild(header);
-    card.appendChild(meta);
-    card.appendChild(body);
-    card.appendChild(footer);
-
-    container.appendChild(card);
-  }
-}
-
-
-// =============================================================
-// ALERT MARKERS (15 TYPES, COLOR-CODED)
-// =============================================================
-const ALERT_TYPES = {
-  POLICE: "Police",
-  SPEED_TRAP: "Speed Trap",
-  TRAFFIC_STOP: "Traffic Stop",
-  CRASH: "Crash",
-  SEVERE_CRASH: "Severe Crash",
-  PILEUP: "Pile-up",
-  CLOSURE: "Closure",
-  CONSTRUCTION: "Construction/Utility",
-  DEBRIS: "Debris",
-  POTHOLE: "Pothole",
-  BLOCKED_LANE: "Blocked Lane",
-  STOPPED_VEHICLE: "Stopped Vehicle",
-  SHOULDER_VEHICLE: "Vehicle on Shoulder",
-  FIRE_EMS: "Fire/EMS",
-  BAD_ROAD: "Bad Road Condition"
-};
-
-const ALERT_COLORS = {
-  "Police": "#3b82f6",
-  "Speed Trap": "#60a5fa",
-  "Traffic Stop": "#2563eb",
-  "Crash": "#f97316",
-  "Severe Crash": "#ef4444",
-  "Pile-up": "#b91c1c",
-  "Closure": "#eab308",
-  "Construction/Utility": "#facc15",
-  "Debris": "#a855f7",
-  "Pothole": "#9333ea",
-  "Blocked Lane": "#fb923c",
-  "Stopped Vehicle": "#f59e0b",
-  "Vehicle on Shoulder": "#fbbf24",
-  "Fire/EMS": "#ef4444",
-  "Bad Road Condition": "#64748b"
-};
-
-function placeAlertMarker(seg, alertType) {
-  const g = seg.denseGeometry;
-  if (g.length < 2) return;
-
-  const idx = Math.floor(Math.random() * (g.length - 1));
-  const pos = g[idx];
-
-  const marker = L.circleMarker(pos, {
-    radius: 7,
-    color: ALERT_COLORS[alertType],
-    fillColor: ALERT_COLORS[alertType],
-    fillOpacity: 0.9,
-    weight: 2
-  }).addTo(map);
-
-  marker.bindPopup(`
-    <b>${alertType}</b><br>
-    ${seg.corridor}<br>
-    Severity: ${congestionLevelLabel(seg.congestion)}<br>
-    Confidence: ${(seg.confidence * 100).toFixed(0)}%
-  `);
-
-  alertMarkers.push({
-    marker,
-    seg,
-    alertType,
-    departments: seg.departments
   });
 }
 
-function updateAlertMarkerVisibility() {
-  for (const a of alertMarkers) {
-    const visible = a.departments.some(d => departmentFilters[d]);
-    if (visible) {
-      if (!map.hasLayer(a.marker)) map.addLayer(a.marker);
-    } else {
-      if (map.hasLayer(a.marker)) map.removeLayer(a.marker);
+// -----------------------------
+// --- Render Functions ---
+function renderTraffic(){
+  trafficLayer.clearLayers();
+  roadData.forEach(road=>{
+    for(let i=0;i<road.densified.length-1;i++){
+      let speed = road.densifiedSpeed[i];
+      let ratio = speed/road.free_flow_speed;
+      let colorIdx = Math.min(Math.floor((1-ratio)*congestionColors.length),congestionColors.length-1);
+      L.polyline([road.densified[i],road.densified[i+1]],{
+        color:congestionColors[colorIdx],
+        weight:6,
+        className:'traffic-line'
+      }).bindPopup(`<b>${road.name}</b><br>Speed: ${speed.toFixed(1)} mph<br>Departments: ${road.departments.join(", ")}`)
+        .addTo(trafficLayer);
     }
-  }
-}
-
-
-// =============================================================
-// DEPARTMENT FILTERS
-// =============================================================
-function attachDepartmentFilters() {
-  const inputs = document.querySelectorAll("input[data-dept]");
-  inputs.forEach(input => {
-    input.addEventListener("change", () => {
-      const dept = input.getAttribute("data-dept");
-      departmentFilters[dept] = input.checked;
-
-      for (const seg of roadSegments) updateSegmentStyle(seg);
-      updateAlertMarkerVisibility();
-      renderReports();
-    });
   });
 }
 
-
-// =============================================================
-// WEATHER TOGGLE
-// =============================================================
-function attachWeatherToggle() {
-  const el = document.getElementById("weather-toggle");
-  const label = el.parentElement.querySelector("span");
-
-  function apply() {
-    weatherEnabled = el.checked;
-    label.textContent = weatherEnabled ? "On" : "Off";
-
-    for (const layer of weatherLayers) {
-      if (weatherEnabled) {
-        if (!map.hasLayer(layer)) map.addLayer(layer);
-      } else {
-        if (map.hasLayer(layer)) map.removeLayer(layer);
-      }
-    }
-  }
-
-  el.addEventListener("change", apply);
-  apply();
+function renderAlerts(){
+  alertLayer.clearLayers();
+  activeAlerts.forEach((alert,i)=>{
+    let color = alertColors[alertTypes.indexOf(alert.type)];
+    let marker = L.circleMarker(alert.latlng,{color:color,radius:8,fill:true,fillOpacity:1});
+    marker.bindPopup(`<b>${alert.type}</b><br>Corridor: ${alert.corridor}<br>Severity: ${alert.severity}<br>Confidence: ${alert.confidence.toFixed(2)}<br>Duration: ${alert.duration.toFixed(0)} min<br>Dept: ${alert.department}`);
+    marker.addTo(alertLayer);
+  });
 }
 
-
-// =============================================================
-// MAIN SIMULATION TICK
-// =============================================================
-function simulationTick() {
-  simulateSpeedsAndCongestion();
-
-  for (const seg of roadSegments) {
-    maybeGenerateReportForSegment(seg);
-
-    // Alerts: only generate on meaningful congestion
-    if (seg.congestion > 0.55 && Math.random() < 0.08) {
-      const alertTypes = Object.values(ALERT_TYPES);
-      const alertType = alertTypes[Math.floor(Math.random() * alertTypes.length)];
-      placeAlertMarker(seg, alertType);
+// -----------------------------
+// --- Simulation Tick ---
+function simulationStep(){
+  document.getElementById("sim-status").innerText = "Running Simulation...";
+  // 1. Update traffic speeds
+  roadData.forEach(road=>{
+    for(let i=0;i<road.densifiedSpeed.length;i++){
+      // Random small fluctuation
+      let fluct = rand(-5,5);
+      road.densifiedSpeed[i] = Math.max(5,Math.min(road.free_flow_speed,road.densifiedSpeed[i]+fluct));
+      // Apply weather effects
+      if(weatherEnabled){
+        weatherZones.forEach(zone=>{
+          if(inWeatherZone(road.densified[i],zone)){
+            road.densifiedSpeed[i] *= (1-zone.intensity);
+          }
+        });
+      }
     }
-  }
-
-  pruneOldReports();
+  });
+  // 2. Generate alerts
+  generateAlerts();
+  // 3. Render
+  renderTraffic();
+  renderAlerts();
   renderReports();
-  updateAlertMarkerVisibility();
 }
 
-
-// =============================================================
-// INITIALIZATION
-// =============================================================
-function init() {
-  drawWeatherCells();
-  drawRoads();
-  attachDepartmentFilters();
-  attachWeatherToggle();
-  simulationTick();
-  setInterval(simulationTick, SIM_TICK_MS);
+// -----------------------------
+// --- Reports Panel ---
+function renderReports(){
+  let container = document.getElementById("report-list");
+  container.innerHTML = "";
+  activeAlerts.forEach(alert=>{
+    let div = document.createElement("div");
+    div.className="report";
+    div.innerHTML = `<b>${alert.type}</b> on <b>${alert.corridor}</b><br>
+                     Severity: ${alert.severity}, Confidence: ${alert.confidence.toFixed(2)}, Duration: ${alert.duration.toFixed(0)} min<br>
+                     Dept: ${alert.department}`;
+    container.appendChild(div);
+  });
 }
 
-init();
-  </script>
+// -----------------------------
+// --- UI Event Handlers ---
+document.getElementById("weather-toggle").addEventListener("change",(e)=>{
+  weatherEnabled=e.target.checked;
+});
+
+document.querySelectorAll(".dept-filter").forEach(cb=>{
+  cb.addEventListener("change",()=>{
+    let activeDepts = Array.from(document.querySelectorAll(".dept-filter:checked")).map(x=>x.value);
+    // Filter alerts
+    activeAlerts.forEach(marker=>{
+      // No per-marker layer filter in this simple demo, could be enhanced
+    });
+    renderAlerts();
+  });
+});
+
+// -----------------------------
+// --- Initial Render ---
+simulationStep();
+setInterval(simulationStep,simulationTick);
+
+</script>
+
 </body>
 </html>
