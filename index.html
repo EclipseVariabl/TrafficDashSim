@@ -76,37 +76,64 @@ let layers = [];
 // Define segments: name, points, free-flow speed, departments
 const roadNetwork = [
   // Major arterials
-  {name:"Broadway Avenue North", points:[[32.375,-95.300],[32.360,-95.300],[32.345,-95.300]], free:45, departments:["Police","Traffic","Engineering"]},
-  {name:"Broadway Avenue South", points:[[32.345,-95.300],[32.330,-95.300],[32.315,-95.300]], free:40, departments:["Police","Traffic","Engineering"]},
+// Broadway Ave North
+  { corridor:"Broadway Ave N", geom:[[32.3750,-95.3000],[32.3745,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
+  { corridor:"Broadway Ave N", geom:[[32.3745,-95.3000],[32.3740,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
+  { corridor:"Broadway Ave N", geom:[[32.3740,-95.3000],[32.3735,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
+  { corridor:"Broadway Ave N", geom:[[32.3735,-95.3000],[32.3730,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
 
-  {name:"Loop 323 North", points:[[32.380,-95.320],[32.380,-95.340]], free:50, departments:["Police","Traffic","Engineering"]},
-  {name:"Loop 323 East", points:[[32.380,-95.340],[32.360,-95.350]], free:50, departments:["Police","Traffic","Engineering"]},
-  {name:"Loop 323 Southeast", points:[[32.360,-95.350],[32.340,-95.345]], free:45, departments:["Police","Traffic","Engineering"]},
-  {name:"Loop 323 South", points:[[32.340,-95.345],[32.320,-95.335]], free:45, departments:["Police","Traffic","Engineering"]},
-  {name:"Loop 323 West", points:[[32.320,-95.335],[32.300,-95.305]], free:50, departments:["Police","Traffic","Engineering"]},
+  // Loop 323 North
+  { corridor:"Loop 323 N", geom:[[32.3800,-95.3200],[32.3800,-95.3150]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
+  { corridor:"Loop 323 N", geom:[[32.3800,-95.3150],[32.3800,-95.3100]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
+  { corridor:"Loop 323 N", geom:[[32.3800,-95.3100],[32.3800,-95.3050]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
 
-  // State highways
-  {name:"SH-31 (5th / West Erwin)", points:[[32.365,-95.290],[32.345,-95.290]], free:40, departments:["Traffic","Engineering"]},
-  {name:"SH-64 (NW-SE)", points:[[32.370,-95.330],[32.350,-95.310]], free:40, departments:["Traffic","Engineering"]},
-  {name:"SH-110 (Troup Hwy)", points:[[32.340,-95.270],[32.330,-95.260]], free:40, departments:["Traffic","Engineering"]},
-  {name:"SH-155 (Frankston Hwy)", points:[[32.345,-95.310],[32.325,-95.295]], free:45, departments:["Traffic","Engineering"]},
+  // SH-31 East
+  { corridor:"SH-31", geom:[[32.3700,-95.3400],[32.3700,-95.3350]], free:55, speed:55, departments:["Traffic","Engineering"], confidence:0.9 },
+  { corridor:"SH-31", geom:[[32.3700,-95.3350],[32.3700,-95.3300]], free:55, speed:55, departments:["Traffic","Engineering"], confidence:0.9 },
+  { corridor:"SH-31", geom:[[32.3700,-95.3300],[32.3700,-95.3250]], free:55, speed:55, departments:["Traffic","Engineering"], confidence:0.9 },
 
-  // FM / connectors
-  {name:"FM 2493", points:[[32.330,-95.285],[32.315,-95.270]], free:35, departments:["Traffic","Engineering"]},
-  {name:"FM 756 North", points:[[32.350,-95.360],[32.340,-95.340]], free:35, departments:["Traffic","Engineering"]},
-  {name:"FM 756 South", points:[[32.340,-95.340],[32.330,-95.320]], free:35, departments:["Traffic","Engineering"]},
-  {name:"Spur 364 (University Blvd)", points:[[32.340,-95.335],[32.345,-95.315]], free:35, departments:["Traffic","Engineering"]},
+  // Cumberland Rd (curved)
+  { corridor:"Cumberland Rd", geom:[[32.3600,-95.3100],[32.3595,-95.3095]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.75 },
+  { corridor:"Cumberland Rd", geom:[[32.3595,-95.3095],[32.3590,-95.3090]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.75 },
+  { corridor:"Cumberland Rd", geom:[[32.3590,-95.3090],[32.3585,-95.3085]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.75 },
 
-  // Toll Loop 49
-  {name:"Toll Loop 49 West", points:[[32.300,-95.250],[32.290,-95.270]], free:55, departments:["Traffic","Engineering"]},
-  {name:"Toll Loop 49 East", points:[[32.290,-95.270],[32.280,-95.290]], free:55, departments:["Traffic","Engineering"]},
+  // Fifth Ave
+  { corridor:"Fifth Ave", geom:[[32.3550,-95.3000],[32.3550,-95.2950]], free:35, speed:35, departments:["Traffic","Police"], confidence:0.7 },
+  { corridor:"Fifth Ave", geom:[[32.3550,-95.2950],[32.3550,-95.2900]], free:35, speed:35, departments:["Traffic","Police"], confidence:0.7 },
 
-  // Downtown minor roads
-  {name:"Front St", points:[[32.348,-95.310],[32.348,-95.300]], free:25, departments:["Traffic","Engineering","Police"]},
-  {name:"Oakwood St", points:[[32.350,-95.312],[32.350,-95.302]], free:25, departments:["Traffic","Engineering","Police"]},
-  {name:"Elm St", points:[[32.352,-95.314],[32.352,-95.304]], free:25, departments:["Traffic","Engineering","Police"]},
-  {name:"College St", points:[[32.354,-95.316],[32.354,-95.306]], free:25, departments:["Traffic","Engineering","Police"]}
-];
+  // Sixth Ave
+  { corridor:"Sixth Ave", geom:[[32.3540,-95.3000],[32.3540,-95.2950]], free:35, speed:35, departments:["Traffic","Police"], confidence:0.7 },
+  { corridor:"Sixth Ave", geom:[[32.3540,-95.2950],[32.3540,-95.2900]], free:35, speed:35, departments:["Traffic","Police"], confidence:0.7 },
+
+  // Greenwood Rd
+  { corridor:"Greenwood Rd", geom:[[32.3600,-95.3050],[32.3580,-95.3050]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.75 },
+
+  // Loop 323 South
+  { corridor:"Loop 323 S", geom:[[32.3450,-95.3200],[32.3450,-95.3150]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
+  { corridor:"Loop 323 S", geom:[[32.3450,-95.3150],[32.3450,-95.3100]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
+
+  // East Erwin St
+  { corridor:"East Erwin St", geom:[[32.3500,-95.3000],[32.3500,-95.2950]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.8 },
+
+  // West Erwin St
+  { corridor:"West Erwin St", geom:[[32.3550,-95.3050],[32.3550,-95.3000]], free:40, speed:40, departments:["Traffic","Streets"], confidence:0.8 },
+
+  // Loop 323 West
+  { corridor:"Loop 323 W", geom:[[32.3700,-95.3200],[32.3700,-95.3250]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
+  { corridor:"Loop 323 W", geom:[[32.3700,-95.3250],[32.3700,-95.3300]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
+
+  // South Broadway Ave
+  { corridor:"Broadway Ave S", geom:[[32.3450,-95.3000],[32.3460,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
+  { corridor:"Broadway Ave S", geom:[[32.3460,-95.3000],[32.3470,-95.3000]], free:45, speed:45, departments:["Traffic","Police"], confidence:0.8 },
+
+  // Loop 323 Connector
+  { corridor:"Loop 323 Connector", geom:[[32.3550,-95.3100],[32.3550,-95.3050]], free:50, speed:50, departments:["Traffic","Engineering"], confidence:0.85 },
+
+  // Additional downtown connector
+  { corridor:"Liberty Rd", geom:[[32.3560,-95.3000],[32.3550,-95.3000]], free:35, speed:35, departments:["Traffic","Streets"], confidence:0.7 },
+
+  // Bonus major road
+  { corridor:"Tyler St", geom:[[32.3580,-95.3050],[32.3560,-95.3030]], free:40, speed:40, departments:["Traffic","Police"], confidence:0.75 }
 
 // Build segment objects with upstream/downstream connectivity
 let segments = [];
