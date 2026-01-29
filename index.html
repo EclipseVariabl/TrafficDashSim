@@ -3,242 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tyler Street-Level Traffic Simulation</title>
-    
+    <title>Tyler TX - Precision Traffic Systems</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <style>
         :root {
-            --bg: #0b0b0e;
-            --panel: #16161a;
-            --accent: #3b82f6;
-            --critical: #ef4444;
-            --heavy: #f59e0b;
-            --flow: #10b981;
-            --text: #ffffff;
+            --bg: #050505;
+            --panel: #111114;
+            --accent: #2563eb;
+            --critical: #dc2626;
+            --heavy: #d97706;
+            --flow: #059669;
+            --text: #f8fafc;
         }
-
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-
-        #container { display: flex; flex-direction: column; height: 100vh; }
-
-        header {
-            height: 65px; background: #111114; border-bottom: 1px solid #2d2d35;
-            display: flex; align-items: center; padding: 0 25px; justify-content: space-between; z-index: 1000;
-        }
-
-        .logo { font-weight: 800; font-size: 1.1rem; letter-spacing: 1px; color: var(--accent); }
-        .logo span { color: #888; font-weight: 400; font-size: 0.8rem; margin-left: 10px; }
-
-        .dept-filters { display: flex; gap: 10px; }
-        .filter-btn {
-            background: #25252b; border: 1px solid #3f3f46; color: #a1a1aa;
-            padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
-            transition: all 0.2s;
-        }
-        .filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
-
-        #workspace { display: flex; flex: 1; overflow: hidden; }
-        #map { flex: 1; background: #000; }
-
-        #incident-panel {
-            width: 380px; background: var(--panel); border-left: 1px solid #2d2d35;
-            display: flex; flex-direction: column;
-        }
-
-        .panel-title { padding: 20px; font-size: 0.85rem; font-weight: 700; border-bottom: 1px solid #2d2d35; display: flex; justify-content: space-between; }
-        .timer-label { color: var(--accent); font-family: monospace; }
-
-        #feed { flex: 1; overflow-y: auto; padding: 15px; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
         
-        .incident-card {
-            background: #1f1f25; border-radius: 6px; padding: 15px; margin-bottom: 12px;
-            border-left: 4px solid #444; animation: slideIn 0.3s ease-out;
+        #ui-wrapper { display: flex; flex-direction: column; height: 100vh; }
+        
+        header {
+            height: 50px; background: #000; border-bottom: 1px solid #222;
+            display: flex; align-items: center; padding: 0 20px; justify-content: space-between; z-index: 1000;
         }
-        .incident-card.high { border-left-color: var(--critical); }
-        .incident-card.med { border-left-color: var(--heavy); }
-        .incident-card.low { border-left-color: var(--flow); }
-        .incident-card.hidden { display: none; }
-
-        .card-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .street-name { font-weight: 700; font-size: 0.9rem; color: #fff; }
-        .timestamp { font-size: 0.7rem; color: #71717a; }
-        .incident-desc { font-size: 0.8rem; color: #d1d1d6; margin: 8px 0; }
-        .dept-pills { display: flex; gap: 5px; }
-        .pill { font-size: 0.6rem; background: #2d2d35; padding: 2px 6px; border-radius: 3px; color: #a1a1aa; text-transform: uppercase; }
-
-        .waze-icon {
-            width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff;
-            display: flex; align-items: center; justify-content: center; font-size: 16px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5); font-weight: bold;
+        .title { font-weight: 900; font-size: 0.9rem; color: var(--accent); text-transform: uppercase; }
+        .filter-group { display: flex; gap: 5px; }
+        .btn {
+            background: #111; border: 1px solid #333; color: #666; padding: 5px 12px;
+            border-radius: 3px; cursor: pointer; font-size: 0.7rem; font-weight: bold;
         }
+        .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
-        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        #main { display: flex; flex: 1; }
+        #map { flex: 1; background: #000; }
+        
+        #sidebar { width: 340px; background: var(--panel); border-left: 1px solid #222; display: flex; flex-direction: column; }
+        .status-bar { padding: 12px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; background: #000; }
+        .heartbeat { width: 10px; height: 10px; border-radius: 50%; background: #0f0; box-shadow: 0 0 5px #0f0; }
+        
+        #report-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .report-card { 
+            background: #1a1a1f; margin-bottom: 10px; padding: 12px; border-radius: 4px; 
+            border-left: 3px solid #444; font-size: 0.8rem;
+        }
+        .report-card.high { border-left-color: var(--critical); }
+        .report-card.med { border-left-color: var(--heavy); }
+        .report-card.low { border-left-color: var(--flow); }
+        .report-card.hidden { display: none; }
+        .coords { font-family: monospace; color: #555; font-size: 0.65rem; }
+        
+        .waze-marker {
+            width: 28px; height: 28px; border-radius: 50% 50% 50% 0;
+            background: var(--accent); transform: rotate(-45deg);
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .waze-marker span { transform: rotate(45deg); font-size: 14px; font-weight: bold; color: white; }
     </style>
 </head>
 <body>
 
-<div id="container">
+<div id="ui-wrapper">
     <header>
-        <div class="logo">TYLER_STREET_NET <span>V4.0 PRECISION SIM</span></div>
-        <div class="dept-filters">
-            <button class="filter-btn active" onclick="filterDept('ALL')">City Wide</button>
-            <button class="filter-btn" onclick="filterDept('PD')">Police</button>
-            <button class="filter-btn" onclick="filterDept('FIRE')">Fire</button>
-            <button class="filter-btn" onclick="filterDept('ENG')">Traffic Eng</button>
+        <div class="title">Tyler Precision Simulation <span>// v5.1 Coordinate-Active</span></div>
+        <div class="filter-group">
+            <button class="btn active" onclick="setFilter('ALL')">ALL</button>
+            <button class="btn" onclick="setFilter('PD')">PD</button>
+            <button class="btn" onclick="setFilter('FIRE')">FIRE</button>
+            <button class="btn" onclick="setFilter('ENG')">ENG</button>
         </div>
     </header>
-
-    <div id="workspace">
+    <div id="main">
         <div id="map"></div>
-        <div id="incident-panel">
-            <div class="panel-title">
-                LIVE STREET REPORTS
-                <span id="timer" class="timer-label">01:30</span>
+        <div id="sidebar">
+            <div class="status-bar">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div class="heartbeat" id="heart"></div>
+                    <span style="font-size: 0.7rem; font-weight: bold;">LIVE FEED</span>
+                </div>
+                <span id="timer" style="font-family: monospace; font-size: 0.8rem; color: var(--accent);">01:30</span>
             </div>
-            <div id="feed"></div>
+            <div id="report-list"></div>
         </div>
     </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const SIM_INTERVAL = 90000; // 1.5 Minutes
-    let map, activeAlerts = [], currentDept = 'ALL', secondsLeft = 90;
+    const REFRESH_RATE = 90000;
+    let map, segments = [], alerts = [], currentFilter = 'ALL', timeLeft = 90;
 
-    // Accurate Tyler Road Segments
-    const STREET_NETWORK = [
-        // Broadway Segments
-        { id: "bway_n", name: "N Broadway Ave (Gentry to Downtown)", path: [[32.400, -95.301], [32.351, -95.301]] },
-        { id: "bway_s", name: "S Broadway Ave (Downtown to Loop)", path: [[32.351, -95.301], [32.308, -95.302]] },
-        { id: "bway_ext", name: "S Broadway Ave (Loop to Grande)", path: [[32.308, -95.302], [32.280, -95.302]] },
-        // Loop 323 Segments
-        { id: "loop_nw", name: "NW Loop 323", path: [[32.384, -95.341], [32.402, -95.301]] },
-        { id: "loop_ne", name: "NE Loop 323", path: [[32.402, -95.301], [32.384, -95.260]] },
-        { id: "loop_sw", name: "SW Loop 323", path: [[32.308, -95.340], [32.315, -95.370]] },
-        { id: "loop_se", name: "SE Loop 323", path: [[32.308, -95.260], [32.316, -95.235]] },
-        // HWY 31 Segments
-        { id: "hwy31_w", name: "W Front St (Hwy 31)", path: [[32.351, -95.301], [32.352, -95.370]] },
-        { id: "hwy31_e", name: "E Front St (Hwy 31)", path: [[32.351, -95.301], [32.350, -95.230]] },
-        // Troup Hwy
-        { id: "troup_1", name: "Troup Hwy (Beckham to Loop)", path: [[32.340, -95.285], [32.316, -95.255]] },
-        // Old Jacksonville
-        { id: "old_jax", name: "Old Jacksonville Hwy", path: [[32.328, -95.315], [32.290, -95.345]] }
-    ];
-
-    const INCIDENT_TYPES = [
-        { type: "Major Collision", icon: "💥", depts: ["PD", "FIRE"], severity: "high" },
-        { type: "Stalled Vehicle", icon: "🚗", depts: ["PD"], severity: "low" },
-        { type: "Traffic Light Out", icon: "🚦", depts: ["ENG"], severity: "high" },
-        { type: "Road Construction", icon: "🚧", depts: ["ENG"], severity: "med" },
-        { type: "Heavy Backup", icon: "🛑", depts: ["PD", "ENG"], severity: "med" }
+    // HIGH PRECISION ROAD NETWORK - Intersection-to-Intersection
+    const ROAD_NETWORK = [
+        // Loop 323 - Quad Segments for high accuracy
+        { name: "Loop 323 (North)", coords: [[32.4024, -95.3344], [32.4024, -95.3013], [32.4024, -95.2655]] },
+        { name: "Loop 323 (East)", coords: [[32.4024, -95.2655], [32.3510, -95.2655], [32.3080, -95.2655]] },
+        { name: "Loop 323 (South)", coords: [[32.3080, -95.2655], [32.3080, -95.3013], [32.3080, -95.3344]] },
+        { name: "Loop 323 (West)", coords: [[32.3080, -95.3344], [32.3510, -95.3344], [32.4024, -95.3344]] },
+        // Broadway (Hwy 69) - Dense Intersections
+        { name: "S Broadway (Loop to Grande)", coords: [[32.3080, -95.3013], [32.2900, -95.3013], [32.2700, -95.3013]] },
+        { name: "S Broadway (Downtown to Loop)", coords: [[32.3510, -95.3013], [32.3300, -95.3013], [32.3080, -95.3013]] },
+        { name: "N Broadway (Downtown to Gentry)", coords: [[32.3510, -95.3013], [32.3750, -95.3013], [32.4024, -95.3013]] },
+        // Front St (Hwy 31)
+        { name: "E Front St", coords: [[32.3510, -95.3013], [32.3510, -95.2655], [32.3510, -95.2200]] },
+        { name: "W Front St", coords: [[32.3510, -95.3013], [32.3510, -95.3344], [32.3510, -95.3800]] },
+        // Diagonals
+        { name: "Troup Hwy", coords: [[32.3480, -95.2950], [32.3250, -95.2750], [32.3080, -95.2600]] },
+        { name: "Gentry Pkwy", coords: [[32.3650, -95.3080], [32.3850, -95.3250], [32.4024, -95.3344]] }
     ];
 
     function init() {
-        map = L.map('map', { zoomControl: false, center: [32.345, -95.301], zoom: 13 });
-        
+        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([32.3513, -95.3011], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-        // Render Street Network
-        STREET_NETWORK.forEach(street => {
-            street.layer = L.polyline(street.path, {
-                color: '#10b981', weight: 6, opacity: 0.8, lineCap: 'round'
-            }).addTo(map);
-            street.layer.bindPopup(`<b>${street.name}</b>`);
+        ROAD_NETWORK.forEach(road => {
+            const poly = L.polyline(road.coords, { color: '#059669', weight: 5, opacity: 0.8 }).addTo(map);
+            segments.push({ ...road, layer: poly });
         });
 
-        runSimulation();
-        setInterval(runSimulation, SIM_INTERVAL);
-        setInterval(updateTimer, 1000);
+        runCycle();
+        setInterval(runCycle, REFRESH_RATE);
+        setInterval(tick, 1000);
     }
 
-    function runSimulation() {
-        secondsLeft = 90;
+    function runCycle() {
+        timeLeft = 90;
+        document.getElementById('heart').style.background = '#0f0';
 
-        // 1. Update Segment Congestion
-        STREET_NETWORK.forEach(street => {
-            const roll = Math.random();
-            let color = '#10b981'; // Flowing
-            if (roll > 0.85) color = '#ef4444'; // Gridlock
-            else if (roll > 0.65) color = '#f59e0b'; // Heavy
-            
-            street.layer.setStyle({ color: color });
+        // Update Road Status based on localized probability
+        segments.forEach(seg => {
+            const chance = Math.random();
+            let color = '#059669';
+            if (chance > 0.85) color = '#dc2626'; // Jams
+            else if (chance > 0.65) color = '#d97706'; // Heavy
+            seg.layer.setStyle({ color: color });
         });
 
-        // 2. Clear Old Incidents
-        activeAlerts.forEach(a => map.removeLayer(a.marker));
-        activeAlerts = [];
-        document.getElementById('feed').innerHTML = '';
+        // Clear and Generate New Coordinate Reports
+        alerts.forEach(a => map.removeLayer(a.marker));
+        alerts = [];
+        document.getElementById('report-list').innerHTML = '';
 
-        // 3. Generate 2-3 New Accurate Incidents
-        for(let i=0; i < (Math.floor(Math.random() * 2) + 2); i++) {
-            createIncident();
-        }
+        for(let i=0; i<4; i++) createPreciseIncident();
     }
 
-    function createIncident() {
-        const street = STREET_NETWORK[Math.floor(Math.random() * STREET_NETWORK.length)];
-        const config = INCIDENT_TYPES[Math.floor(Math.random() * INCIDENT_TYPES.length)];
+    function createPreciseIncident() {
+        const road = ROAD_NETWORK[Math.floor(Math.random() * ROAD_NETWORK.length)];
+        const types = [
+            { t: "Major Collision", i: "💥", d: ["PD", "FIRE"], s: "high" },
+            { t: "Stalled Vehicle", i: "🚗", d: ["PD"], s: "low" },
+            { t: "Signal Failure", i: "🚦", d: ["ENG"], s: "high" },
+            { t: "Debris", i: "🚧", d: ["ENG"], s: "med" }
+        ];
+        const type = types[Math.floor(Math.random() * types.length)];
         
-        // Accurate Placement: Randomly pick start or end of the segment
-        const pos = street.path[Math.random() > 0.5 ? 0 : 1];
-        
-        const color = config.severity === 'high' ? '#ef4444' : (config.severity === 'med' ? '#f59e0b' : '#3b82f6');
-        
-        const icon = L.divIcon({
-            className: '',
-            html: `<div class="waze-icon" style="background:${color}">${config.icon}</div>`,
-            iconSize: [32, 32]
-        });
+        // COORDINATE CALCULATION: Pick two points on the road and interpolate a random mid-point
+        const pt1 = road.coords[0];
+        const pt2 = road.coords[1];
+        const ratio = Math.random();
+        const lat = pt1[0] + (pt2[0] - pt1[0]) * ratio;
+        const lng = pt1[1] + (pt2[1] - pt1[1]) * ratio;
 
-        const marker = L.marker(pos, { icon: icon }).bindPopup(`<b>${config.type}</b><br>${street.name}`);
-        
+        const iconColor = type.s === 'high' ? '#dc2626' : (type.s === 'med' ? '#d97706' : '#2563eb');
+        const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: '',
+                html: `<div class="waze-marker" style="background:${iconColor}"><span>${type.i}</span></div>`,
+                iconSize: [28, 28]
+            })
+        }).bindPopup(`<b>${type.t}</b><br>${road.name}`);
+
         const card = document.createElement('div');
-        card.className = `incident-card ${config.severity}`;
+        card.className = `report-card ${type.s}`;
         card.innerHTML = `
-            <div class="card-row">
-                <span class="street-name">${street.name}</span>
-                <span class="timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <b style="color:white;">${type.t}</b>
+                <span style="color:#666; font-size:10px;">${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
             </div>
-            <div class="incident-desc">${config.icon} ${config.type} reported on this segment.</div>
-            <div class="dept-pills">
-                ${config.depts.map(d => `<span class="pill">${d}</span>`).join('')}
+            <div style="margin-bottom:8px;">${road.name}</div>
+            <div class="coords">LAT: ${lat.toFixed(5)} / LNG: ${lng.toFixed(5)}</div>
+            <div style="display:flex; gap:4px; margin-top:8px;">
+                ${type.d.map(d => `<span style="background:#333; padding:2px 5px; border-radius:2px; font-size:9px;">${d}</span>`).join('')}
             </div>
         `;
 
-        const alertObj = { marker, depts: config.depts, element: card };
-        activeAlerts.push(alertObj);
-
-        document.getElementById('feed').appendChild(card);
-        syncVisibility(alertObj);
+        const alertObj = { marker, depts: type.d, element: card };
+        alerts.push(alertObj);
+        document.getElementById('report-list').prepend(card);
+        updateVisibility(alertObj);
     }
 
-    function syncVisibility(alert) {
-        const isVisible = currentDept === 'ALL' || alert.depts.includes(currentDept);
-        if (isVisible) {
-            alert.marker.addTo(map);
-            alert.element.classList.remove('hidden');
-        } else {
-            map.removeLayer(alert.marker);
-            alert.element.classList.add('hidden');
-        }
+    function setFilter(f) {
+        currentFilter = f;
+        document.querySelectorAll('.btn').forEach(b => b.classList.toggle('active', b.innerText === f || (f === 'ALL' && b.innerText === 'ALL')));
+        alerts.forEach(updateVisibility);
     }
 
-    function filterDept(dept) {
-        currentDept = dept;
-        document.querySelectorAll('.filter-btn').forEach(b => {
-            b.classList.toggle('active', b.innerText.includes(dept) || (dept === 'ALL' && b.innerText === 'City Wide'));
-        });
-        activeAlerts.forEach(syncVisibility);
+    function updateVisibility(a) {
+        const show = currentFilter === 'ALL' || a.depts.includes(currentFilter);
+        if(show) { a.marker.addTo(map); a.element.classList.remove('hidden'); }
+        else { map.removeLayer(a.marker); a.element.classList.add('hidden'); }
     }
 
-    function updateTimer() {
-        secondsLeft--;
-        if (secondsLeft < 0) secondsLeft = 0;
-        const mins = Math.floor(secondsLeft / 60);
-        const secs = secondsLeft % 60;
-        document.getElementById('timer').innerText = 
-            `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    function tick() {
+        timeLeft--;
+        if(timeLeft < 0) timeLeft = 0;
+        const m = Math.floor(timeLeft / 60);
+        const s = timeLeft % 60;
+        document.getElementById('timer').innerText = `${m}:${s < 10 ? '0'+s : s}`;
+        if(timeLeft < 5) document.getElementById('heart').style.background = '#f00';
     }
 
     window.onload = init;
