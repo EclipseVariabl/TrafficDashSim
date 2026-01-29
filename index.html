@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>City of Tyler – Traffic & Mobility Operations Center</title>
+<title>City of Tyler – Citywide Traffic Operations Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
@@ -15,49 +15,47 @@
 }
 *{box-sizing:border-box;font-family:Segoe UI,Roboto,sans-serif}
 body{margin:0;background:var(--bg);color:var(--text)}
-header{padding:16px 22px;background:linear-gradient(90deg,#0b1220,#121a2f);
-display:flex;justify-content:space-between;border-bottom:1px solid #1f2a48}
-.dashboard{display:grid;grid-template-columns:360px 1fr 420px;height:calc(100vh - 70px)}
+header{padding:16px 22px;background:#0b1220;border-bottom:1px solid #1f2a48}
+.dashboard{display:grid;grid-template-columns:380px 1fr 420px;height:calc(100vh - 64px)}
 .panel{background:var(--panel);padding:16px;border-right:1px solid #1f2a48;overflow:auto}
-.panel h2{font-size:15px;color:#00c2ff;margin-top:14px}
+.panel h2{font-size:15px;color:#00c2ff;margin:14px 0 8px}
 #map{width:100%;height:100%}
 .report{background:var(--panel2);padding:12px;margin-bottom:10px;
 border-left:4px solid #00c2ff;border-radius:6px}
 .report small{color:var(--muted)}
+.legend{position:absolute;bottom:20px;left:20px;background:#0e1730;
+padding:10px;border-radius:6px;font-size:12px}
 footer{position:fixed;bottom:0;left:0;right:0;
 background:#0e1730;padding:6px 16px;font-size:12px;
 display:flex;justify-content:space-between;color:var(--muted)}
-.legend{position:absolute;bottom:20px;left:20px;background:#0e1730;
-padding:10px;border-radius:6px;font-size:12px}
 </style>
 </head>
 
 <body>
 
 <header>
-<h1>City of Tyler <span style="color:#00c2ff">Traffic & Mobility Operations Center</span></h1>
-<div>Integrated Waze • NOAA • TxDOT • City Simulation</div>
+<h1>City of Tyler – Citywide Traffic Operations Center</h1>
 </header>
 
 <div class="dashboard">
 
 <!-- LEFT PANEL -->
 <div class="panel">
-<h2>Network Performance Metrics</h2>
+<h2>Network Performance</h2>
 <div class="report">
-<b>Average Network Speed:</b> <span id="avgSpeed">—</span><br>
+<b>Average Speed:</b> <span id="avgSpeed">—</span><br>
+<b>Congested Segments:</b> <span id="congested">—</span><br>
 <b>Travel Time Index:</b> <span id="tti">—</span><br>
-<b>Congested Lane Miles:</b> <span id="laneMiles">—</span><br>
-<b>Waze Alert Confidence Avg:</b> <span id="confidence">—</span>
+<b>Active Waze Alerts:</b> <span id="alerts">—</span>
 </div>
 
-<h2>Departmental Impact Summary</h2>
+<h2>Departmental Relevance</h2>
 <div class="report">
-<b>Police:</b> Collision & obstruction monitoring<br>
-<b>Fire:</b> Response delay corridors flagged<br>
-<b>Traffic:</b> Signal stress detected<br>
-<b>Streets:</b> Pavement/weather sensitivity zones<br>
-<b>Engineering:</b> Recurring congestion pattern review
+<b>Police:</b> Crashes, obstructions, enforcement delays<br>
+<b>Fire:</b> Response-time degradation corridors<br>
+<b>Traffic:</b> Signal & queue spillback zones<br>
+<b>Streets:</b> Weather & pavement sensitivity<br>
+<b>Engineering:</b> Recurring bottleneck detection
 </div>
 </div>
 
@@ -66,14 +64,14 @@ padding:10px;border-radius:6px;font-size:12px}
 
 <!-- RIGHT PANEL -->
 <div class="panel">
-<h2>Live Situation Reports (Waze-Based)</h2>
+<h2>Live Situation Reports</h2>
 <div id="reports"></div>
 </div>
 
 </div>
 
 <footer>
-<div>Feeds: Waze for Cities (Sim) • NWS/NOAA • TxDOT • City of Tyler</div>
+<div>Simulated Feeds: Waze For Cities • NOAA/NWS • TxDOT • City of Tyler</div>
 <div id="clock"></div>
 </footer>
 
@@ -82,63 +80,103 @@ padding:10px;border-radius:6px;font-size:12px}
 const map=L.map('map').setView([32.3513,-95.3011],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
-let layers=[],reports=[];
+/* ---------------- ROAD NETWORK ---------------- */
 
-/* City arterial mesh */
-const network=[];
-for(let i=0;i<30;i++){
-network.push({
-center:[32.33+Math.random()*0.08,-95.34+Math.random()*0.08],
-baseSpeed:30+Math.random()*15,
-density:Math.random(),
+/* Broadway Ave (north–south, fixed geometry) */
+const broadway=[
+[32.322,-95.300],[32.330,-95.300],[32.338,-95.300],[32.346,-95.300],
+[32.354,-95.300],[32.362,-95.300],[32.370,-95.300]
+];
+
+/* Loop 323 (simplified arc) */
+const loop323=[
+[32.335,-95.340],[32.350,-95.335],[32.365,-95.330],
+[32.380,-95.325]
+];
+
+/* SH-155 */
+const sh155=[
+[32.325,-95.285],[32.340,-95.288],[32.355,-95.290],[32.370,-95.292]
+];
+
+const corridors=[
+{name:"Broadway Ave", points:broadway, free:40},
+{name:"Loop 323", points:loop323, free:50},
+{name:"SH-155", points:sh155, free:45}
+];
+
+/* Build segment objects */
+let segments=[];
+corridors.forEach(c=>{
+for(let i=0;i<c.points.length-1;i++){
+segments.push({
+corridor:c.name,
+geom:[c.points[i],c.points[i+1]],
+free:c.free,
+speed:c.free,
+volume:Math.random(),
 shock:0,
-confidence:0.6+Math.random()*0.35
+confidence:0.65+Math.random()*0.3
 });
 }
+});
+
+let layers=[];
+let reports=[];
+
+/* ---------------- SIMULATION ENGINE ---------------- */
 
 function clearLayers(){layers.forEach(l=>map.removeLayer(l));layers=[];}
 
 function simulate(){
 clearLayers();
 reports=[];
-let totalSpeed=0,congested=0,confSum=0;
+let totalSpeed=0,congested=0,alerts=0;
 
-network.forEach(seg=>{
-seg.shock*=0.7;
-if(Math.random()>0.92) seg.shock+=Math.random()*15;
+segments.forEach((s,idx)=>{
+/* demand cycle */
+let demand=0.3+Math.random()*0.5;
 
-let weatherImpact=Math.random()>0.85?10:0;
-let speed=Math.max(5,seg.baseSpeed - seg.shock - weatherImpact);
-let jamLevel=speed<15?2:speed<25?1:0;
+/* shock propagation */
+if(Math.random()>0.96) s.shock+=15;
+if(idx>0 && segments[idx-1].speed<20) s.shock+=5;
+s.shock*=0.75;
 
-let color=jamLevel===2?"#ff4d4d":jamLevel===1?"#ffb703":"#2ec4b6";
-let weight=jamLevel===2?8:jamLevel===1?6:4;
+/* weather */
+let weather=Math.random()>0.9?8:0;
+
+/* speed calc */
+s.speed=Math.max(5,s.free - s.shock - weather - demand*10);
+totalSpeed+=s.speed;
+
+/* severity */
+let level=s.speed<15?2:s.speed<25?1:0;
+if(level>0){congested++;alerts++;}
+
+/* styling */
+let color=level===2?"#ff4d4d":level===1?"#ffb703":"#2ec4b6";
+let weight=level===2?9:level===1?7:4;
 
 layers.push(
-L.polyline([
-[seg.center[0]-0.005,seg.center[1]-0.005],
-[seg.center[0]+0.005,seg.center[1]+0.005]
-],{color,weight,opacity:0.9})
-.addTo(map)
+L.polyline(s.geom,{color,weight,opacity:0.95}).addTo(map)
 );
 
-if(jamLevel>0){
-congested++;
-let cause=weatherImpact?"Weather degradation":"Demand / incident";
+/* reporting */
+if(level>0){
 reports.push({
-text:`${jamLevel===2?"Heavy":"Moderate"} congestion detected. Cause: ${cause}. Speed reduced to ${speed.toFixed(0)} mph.`,
-confidence:seg.confidence
+text:`${s.corridor}: ${level===2?"Heavy":"Moderate"} congestion.
+Observed speed ${s.speed.toFixed(0)} mph.
+Cause: ${weather?"Weather impact":"Demand / downstream constraint"}.
+Likely to ${s.shock>10?"persist":"stabilize"} next cycle.`,
+confidence:s.confidence
 });
 }
-
-totalSpeed+=speed;
-confSum+=seg.confidence;
 });
 
-document.getElementById("avgSpeed").innerText=(totalSpeed/network.length).toFixed(1)+" mph";
-document.getElementById("tti").innerText=(1+(congested/network.length)).toFixed(2);
-document.getElementById("laneMiles").innerText=(congested*0.8).toFixed(1)+" mi";
-document.getElementById("confidence").innerText=(confSum/network.length*100).toFixed(0)+"%";
+document.getElementById("avgSpeed").innerText=(totalSpeed/segments.length).toFixed(1)+" mph";
+document.getElementById("congested").innerText=congested;
+document.getElementById("tti").innerText=(1+congested/segments.length).toFixed(2);
+document.getElementById("alerts").innerText=alerts;
 
 renderReports();
 }
@@ -146,7 +184,7 @@ renderReports();
 function renderReports(){
 const el=document.getElementById("reports");
 el.innerHTML="";
-reports.slice(0,6).forEach(r=>{
+reports.slice(0,8).forEach(r=>{
 el.innerHTML+=`
 <div class="report">
 <b>Waze Traffic Alert</b><br>
@@ -157,7 +195,7 @@ ${r.text}<br>
 }
 
 simulate();
-setInterval(simulate,7000);
+setInterval(simulate,6000);
 setInterval(()=>document.getElementById("clock").innerText=new Date().toLocaleString(),1000);
 </script>
 
