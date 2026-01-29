@@ -4,127 +4,75 @@
 <meta charset="UTF-8">
 <title>City of Tyler – Integrated Traffic Operations Center</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
 :root{
---bg:#0b1220;--panel:#121a2f;--accent:#00c2ff;
---danger:#ff4d4d;--warning:#ffb703;--success:#2ec4b6;
+--bg:#0b1220;--panel:#121a2f;
+--red:#ff4d4d;--orange:#ffb703;--yellow:#ffd166;
+--blue:#4dabf7;--green:#2ec4b6;
 --text:#e6e9ef;--muted:#9aa4bf;
 }
 *{box-sizing:border-box;font-family:Segoe UI,Roboto,sans-serif}
 body{margin:0;background:var(--bg);color:var(--text)}
-
-header{
-padding:14px 22px;
-background:linear-gradient(90deg,#0b1220,#121a2f);
-display:flex;justify-content:space-between;align-items:center;
-border-bottom:1px solid #1f2a48
-}
-header h1{margin:0;font-size:20px}
-header span{color:var(--accent)}
-
-.dashboard{
-display:grid;
-grid-template-columns:320px 1fr 360px;
-height:calc(100vh - 64px)
-}
-.panel{
-background:var(--panel);
-border-right:1px solid #1f2a48;
-padding:14px;
-overflow:auto
-}
-.panel h2{font-size:15px;color:var(--accent);margin:10px 0}
-
+header{padding:14px 22px;background:linear-gradient(90deg,#0b1220,#121a2f);
+display:flex;justify-content:space-between;border-bottom:1px solid #1f2a48}
+.dashboard{display:grid;grid-template-columns:320px 1fr 360px;height:calc(100vh - 64px)}
+.panel{background:var(--panel);padding:14px;border-right:1px solid #1f2a48;overflow:auto}
+.panel h2{color:#00c2ff;font-size:15px;margin:10px 0}
 .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .kpi{background:#0e1730;padding:10px;border-radius:6px}
 .kpi h3{margin:0;font-size:12px;color:var(--muted)}
 .kpi p{margin:4px 0 0;font-size:18px}
-
 #map{height:100%;width:100%}
-
-.legend{
-position:absolute;
-bottom:20px;
-left:20px;
-background:#0e1730;
-padding:10px;
-border-radius:6px;
-font-size:12px;
-line-height:1.6
-}
-
-.insight{
-background:#0e1730;
-padding:10px;
-border-radius:6px;
-margin-bottom:8px;
-border-left:4px solid var(--accent)
-}
-
-footer{
-position:fixed;
-bottom:0;left:0;right:0;
-background:#0e1730;
-padding:6px 14px;
-font-size:12px;
-color:var(--muted);
-display:flex;
-justify-content:space-between
-}
+.legend{position:absolute;bottom:20px;left:20px;background:#0e1730;padding:10px;border-radius:6px;font-size:12px}
+.legend div{margin-bottom:4px}
+footer{position:fixed;bottom:0;left:0;right:0;background:#0e1730;
+padding:6px 14px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
 </style>
 </head>
 
 <body>
 
 <header>
-<h1>City of Tyler <span>Integrated Traffic Operations Center</span></h1>
-<div>Primary Feed: Waze for Cities (Simulated)</div>
+<h1>City of Tyler <span style="color:#00c2ff">Integrated Traffic Operations Center</span></h1>
+<div>Dynamic Simulation • Waze-Driven</div>
 </header>
 
 <div class="dashboard">
 
-<!-- LEFT -->
 <div class="panel">
-<h2>Waze-Derived KPIs</h2>
+<h2>Citywide KPIs</h2>
 <div class="kpis">
-<div class="kpi"><h3>Active Waze Alerts</h3><p style="color:var(--danger)">12</p></div>
-<div class="kpi"><h3>Heavy Jams</h3><p>4</p></div>
-<div class="kpi"><h3>Crashes Reported</h3><p>3</p></div>
-<div class="kpi"><h3>Avg Speed</h3><p>31 mph</p></div>
+<div class="kpi"><h3>Avg Speed</h3><p id="speed">32 mph</p></div>
+<div class="kpi"><h3>Delay Index</h3><p id="delay">1.31</p></div>
+<div class="kpi"><h3>Active Waze Alerts</h3><p id="alerts">11</p></div>
+<div class="kpi"><h3>Signal Health</h3><p style="color:var(--green)">88%</p></div>
 </div>
 
-<h2>Active Waze Alerts</h2>
-<div class="insight"><strong>ACCIDENT_MAJOR</strong> – Broadway Ave (7 reports)</div>
-<div class="insight"><strong>JAM_HEAVY</strong> – Loop 323 EB (11 reports)</div>
-<div class="insight"><strong>HAZARD_WEATHER</strong> – Standing water SH-155</div>
-<div class="insight"><strong>STOPPED_VEHICLE</strong> – Downtown arterial</div>
+<h2>Operational Summary</h2>
+<div style="font-size:13px;line-height:1.5">
+Traffic conditions updating from crowd-sourced Waze alerts.  
+Weather impacts applied from NWS overlay.  
+Departments responding to severity changes.
+</div>
 </div>
 
-<!-- MAP -->
 <div id="map"></div>
 
-<!-- RIGHT -->
 <div class="panel">
-<h2>Department Interpretation</h2>
-<div class="insight"><strong>PD:</strong> Responding to ACCIDENT_MAJOR on Broadway</div>
-<div class="insight"><strong>Fire:</strong> EMS dispatched based on Waze severity</div>
-<div class="insight"><strong>Traffic:</strong> JAM_HEAVY triggered timing adjustment</div>
-<div class="insight"><strong>Streets:</strong> HAZARD_WEATHER flagged for inspection</div>
-<div class="insight"><strong>Engineering:</strong> Recurrent JAM_MODERATE logged</div>
-
 <h2>AI City Advisor</h2>
-<div class="insight">
-Multiple Waze alerts on primary corridor indicate incident-driven congestion rather than demand-based slowdown. Prioritize clearance.
+<div style="background:#0e1730;padding:10px;border-left:4px solid #00c2ff">
+Dynamic congestion detected on Broadway corridor.  
+Weather impact increasing delay volatility.  
+Recommend continued monitoring and proactive messaging.
 </div>
 </div>
 
 </div>
 
 <footer>
-<div>Waze Alerts → City Interpretation → Department Action</div>
+<div>Simulated Feeds: Waze • NWS/NOAA • TxDOT • City of Tyler</div>
 <div id="clock"></div>
 </footer>
 
@@ -133,80 +81,82 @@ Multiple Waze alerts on primary corridor indicate incident-driven congestion rat
 const map=L.map('map').setView([32.3513,-95.3011],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
-/* --- Waze-style congestion (JAM alerts) --- */
+let jamLayers=[], alertLayers=[], weatherLayers=[];
 
-// JAM_HEAVY – Broadway
-L.polyline([
-[32.333,-95.300],
-[32.345,-95.301],
-[32.358,-95.302]
-],{color:'#ff4d4d',weight:7})
+function clearLayers(arr){arr.forEach(l=>map.removeLayer(l));arr.length=0;}
+
+function drawJams(){
+clearLayers(jamLayers);
+const severities=[
+{color:"#ff4d4d",weight:8,speed:14},
+{color:"#ffb703",weight:6,speed:22},
+{color:"#ffd166",weight:5,speed:28}
+];
+const segments=[
+[[32.333,-95.300],[32.340,-95.301],[32.347,-95.301]],
+[[32.347,-95.301],[32.355,-95.302],[32.362,-95.302]]
+];
+segments.forEach(seg=>{
+const s=severities[Math.floor(Math.random()*severities.length)];
+jamLayers.push(
+L.polyline(seg,{color:s.color,weight:s.weight,opacity:.9})
 .addTo(map)
-.bindPopup(`
-<strong>Waze: JAM_HEAVY</strong><br>
-Avg speed: 14 mph<br>
-Reports: 9<br>
-Duration: 18 min
-`);
-
-// JAM_MODERATE – Loop 323
-L.polyline([
-[32.340,-95.325],
-[32.360,-95.330],
-[32.380,-95.315]
-],{color:'#ffb703',weight:6})
-.addTo(map)
-.bindPopup(`
-<strong>Waze: JAM_MODERATE</strong><br>
-Avg speed: 24 mph<br>
-Reports: 6
-`);
-
-/* --- Waze Alert Markers --- */
-
-function wazeIcon(symbol){
-return L.divIcon({html:symbol,iconSize:[26,26]});
+.bindPopup(`Waze JAM<br>Avg speed ${s.speed} mph`)
+);
+});
 }
 
-// ACCIDENT_MAJOR
-L.marker([32.351,-95.301],{icon:wazeIcon("💥")})
-.addTo(map)
-.bindPopup(`
-<strong>Waze Alert: ACCIDENT_MAJOR</strong><br>
-Location: Broadway Ave<br>
-Reports: 7<br>
-Interpreted by: PD / Fire
-`);
+function drawAlerts(){
+clearLayers(alertLayers);
+alertLayers.push(
+L.circleMarker([32.351,-95.301],{radius:8,color:"#ff4d4d",fillOpacity:.8})
+.addTo(map).bindPopup("ACCIDENT_MAJOR – Waze")
+);
+if(Math.random()>0.5){
+alertLayers.push(
+L.circleMarker([32.358,-95.318],{radius:7,color:"#ffb703",fillOpacity:.8})
+.addTo(map).bindPopup("STOPPED_VEHICLE – Waze")
+);
+}
+}
 
-// STOPPED_VEHICLE
-L.marker([32.349,-95.298],{icon:wazeIcon("🚗")})
-.addTo(map)
-.bindPopup(`
-<strong>Waze Alert: STOPPED_VEHICLE</strong><br>
-Reports: 3<br>
-Shoulder obstruction
-`);
+function drawWeather(){
+clearLayers(weatherLayers);
+weatherLayers.push(
+L.circle([32.37,-95.285],{
+radius:1800,color:"#4dabf7",fillOpacity:.25
+}).addTo(map).bindPopup("NWS: Heavy Rain Area")
+);
+}
 
-// HAZARD_WEATHER
-L.marker([32.370,-95.285],{icon:wazeIcon("🌧️")})
-.addTo(map)
-.bindPopup(`
-<strong>Waze Alert: HAZARD_WEATHER</strong><br>
-Standing water reported<br>
-Verified by NWS overlay
-`);
+function updateKPIs(){
+document.getElementById("speed").innerText =
+(28+Math.random()*8).toFixed(0)+" mph";
+document.getElementById("delay").innerText =
+(1.2+Math.random()*0.3).toFixed(2);
+document.getElementById("alerts").innerText =
+Math.floor(8+Math.random()*6);
+}
 
-setInterval(()=>{
-document.getElementById("clock").innerText=new Date().toLocaleString();
-},1000);
+function tick(){
+drawJams();
+drawAlerts();
+drawWeather();
+updateKPIs();
+}
+
+tick();
+setInterval(tick,10000);
+setInterval(()=>document.getElementById("clock").innerText=new Date().toLocaleString(),1000);
 </script>
 
 <div class="legend">
-<div>💥 ACCIDENT_MAJOR</div>
-<div>🚗 STOPPED_VEHICLE</div>
-<div>🌧️ HAZARD_WEATHER</div>
-<div style="color:#ff4d4d">━ JAM_HEAVY</div>
-<div style="color:#ffb703">━ JAM_MODERATE</div>
+<div style="color:#ff4d4d">━ Heavy Jam</div>
+<div style="color:#ffb703">━ Moderate Jam</div>
+<div style="color:#ffd166">━ Light Jam</div>
+<div>● Red: Accident</div>
+<div>● Orange: Disabled Vehicle</div>
+<div>● Blue Circle: Weather Impact</div>
 </div>
 
 </body>
