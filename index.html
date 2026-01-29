@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tyler, TX Traffic & Operations Simulation - v2</title>
+    <title>Tyler, TX Ops Simulation - v3.1</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
@@ -77,7 +77,9 @@
             background: #2e2e33; border-left: 4px solid #555;
             padding: 12px; margin-bottom: 10px; border-radius: 0 4px 4px 0;
             font-size: 0.9rem; transition: transform 0.2s;
+            display: block; /* Default visible */
         }
+        .feed-item.hidden { display: none; }
         .feed-item:hover { background: #35353a; transform: translateX(2px); }
         .feed-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem; color: #888; }
         .feed-street { font-weight: bold; color: #fff; margin-bottom: 4px; }
@@ -89,9 +91,8 @@
         .sev-low { border-left-color: var(--success); }
         .sev-med { border-left-color: var(--warning); }
         .sev-high { border-left-color: var(--danger); }
-        .sev-crit { border-left-color: #8e44ad; }
 
-        /* Map Legend Overlay */
+        /* Map Legend */
         .map-overlay {
             position: absolute; bottom: 20px; left: 20px;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px;
@@ -100,22 +101,27 @@
         .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
         .color-box { width: 12px; height: 12px; margin-right: 8px; border-radius: 2px; }
 
-        /* Map Alert Icon Styles */
-        .alert-marker-icon {
-            background: var(--danger);
-            border: 2px solid white;
+        /* Alert Marker CSS Icon */
+        .alert-marker {
+            display: flex; justify-content: center; align-items: center;
             border-radius: 50%;
-            box-shadow: 0 0 10px var(--danger);
+            color: white; font-size: 14px;
+            box-shadow: 0 0 0 rgba(255, 255, 255, 0.4);
             animation: pulse-marker 2s infinite;
         }
+        /* Department Specific Marker Colors */
+        .marker-PD { background: #3498db; border: 2px solid #2980b9; }
+        .marker-FIRE { background: #e74c3c; border: 2px solid #c0392b; }
+        .marker-ENG { background: #f39c12; border: 2px solid #d35400; }
+        .marker-STREETS { background: #9b59b6; border: 2px solid #8e44ad; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         @keyframes pulse-marker { 
-            0% { box-shadow: 0 0 0 0px rgba(231, 76, 60, 0.7); transform: scale(1); }
-            70% { box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); transform: scale(1.1); }
-            100% { box-shadow: 0 0 0 0px rgba(231, 76, 60, 0); transform: scale(1); }
+            0% { box-shadow: 0 0 0 0px rgba(255,255,255, 0.7); transform: scale(1); }
+            70% { box-shadow: 0 0 0 10px rgba(255,255,255, 0); transform: scale(1.1); }
+            100% { box-shadow: 0 0 0 0px rgba(255,255,255, 0); transform: scale(1); }
         }
-        
+
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #222; }
@@ -128,10 +134,11 @@
     <header>
         <div class="brand">TYLER<span>SIM</span> <small style="font-size:0.7em; opacity:0.6; font-weight:normal;">/ TRAFFIC OPS</small></div>
         <div class="controls">
-            <button class="filter-btn active" onclick="toggleLayer('all')">All</button>
-            <button class="filter-btn" onclick="toggleLayer('PD')">Police</button>
-            <button class="filter-btn" onclick="toggleLayer('FIRE')">Fire</button>
-            <button class="filter-btn" onclick="toggleLayer('ENG')">Engineering</button>
+            <button class="filter-btn active" onclick="setFilter('all')">All</button>
+            <button class="filter-btn" onclick="setFilter('PD')">Police</button>
+            <button class="filter-btn" onclick="setFilter('FIRE')">Fire</button>
+            <button class="filter-btn" onclick="setFilter('ENG')">Engineering</button>
+            <button class="filter-btn" onclick="setFilter('STREETS')">Streets</button>
         </div>
     </header>
 
@@ -148,7 +155,7 @@
 
         <div id="side-panel">
             <div class="panel-header">
-                <span>Live Intelligence</span>
+                <span>Alert Feed</span>
                 <span class="live-indicator">● LIVE</span>
             </div>
             <div id="feed-container">
@@ -160,34 +167,41 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 <script>
-    // --- 1. CONFIGURATION & STATE ---
-    const TYLER_CENTER = [32.3513, -95.3011]; // Near downtown grid
-    const UPDATE_INTERVAL = 1500; // ms
-    
+    // --- 1. CONFIGURATION ---
+    const TYLER_CENTER = [32.3513, -95.3011];
+    const UPDATE_INTERVAL = 1500; 
+
+    // Departments Logic: Now tied to incident types, not roads.
+    const INCIDENT_TYPES = [
+        { name: "Major Accident", icon: "💥", depts: ['PD', 'FIRE', 'ENG'], severity: 'high' },
+        { name: "Minor Accident", icon: "🚗", depts: ['PD'], severity: 'med' },
+        { name: "Debris on Road", icon: "⚠️", depts: ['STREETS'], severity: 'low' },
+        { name: "Signal Malfunction", icon: "🚦", depts: ['ENG', 'PD'], severity: 'med' },
+        { name: "Stalled Vehicle", icon: "🛑", depts: ['PD', 'TRAFFIC'], severity: 'low' },
+        { name: "Structure Fire", icon: "🔥", depts: ['FIRE', 'PD'], severity: 'high' }
+    ];
+
     // State
     let map;
-    let roadLayers = [];
-    let activeFilter = 'all';
+    let roadLayers = []; 
+    let activeAlerts = []; // Stores objects { id, marker, depts, domElement }
     let weatherSystems = [];
-    let alertLayerGroup;
+    let activeFilter = 'all';
     let simulationTick = 0;
 
-    // --- 2. GEOMETRY & NETWORK GENERATION ---
-    
-    // Define Key Anchor Points (Intersections) to ensure perfect alignment
+    // --- 2. GEOMETRY (The Anchors) ---
     const ANCHORS = {
         DOWNTOWN: [32.3513, -95.3011],
-        N_LOOP:   [32.4025, -95.3000], // N Broadway & Loop 323
-        S_LOOP:   [32.3055, -95.3020], // S Broadway & Loop 323
-        E_LOOP:   [32.3500, -95.2310], // E Loop & SH31
-        W_LOOP:   [32.3520, -95.3700], // W Loop & SH31
-        SE_LOOP:  [32.3160, -95.2510], // Troup Hwy & Loop
-        SW_LOOP:  [32.3150, -95.3500], // Old Jax & Loop
+        N_LOOP:   [32.4025, -95.3000], 
+        S_LOOP:   [32.3055, -95.3020], 
+        E_LOOP:   [32.3500, -95.2310], 
+        W_LOOP:   [32.3520, -95.3700], 
+        SE_LOOP:  [32.3160, -95.2510], 
+        SW_LOOP:  [32.3150, -95.3500], 
         NE_LOOP:  [32.3850, -95.2500],
         NW_LOOP:  [32.3850, -95.3500]
     };
 
-    // Helper to create dense points between two anchors for smooth lines
     function generateDensifiedPath(start, end, segments) {
         const path = [];
         for (let i = 0; i <= segments; i++) {
@@ -199,86 +213,7 @@
         return path;
     }
 
-    function generateRoadNetwork() {
-        // 1. Generate Loop 323 Ring (connecting the outer anchors)
-        const loop anchors = [ANCHORS.N_LOOP, ANCHORS.NE_LOOP, ANCHORS.E_LOOP, ANCHORS.SE_LOOP, ANCHORS.S_LOOP, ANCHORS.SW_LOOP, ANCHORS.W_LOOP, ANCHORS.NW_LOOP, ANCHORS.N_LOOP];
-        for(let i=0; i<anchors.length-1; i++) {
-            // Create slightly curved segments between anchors for the loop
-            const path = generateDensifiedPath(anchors[i], anchors[i+1], 8);
-            createRoadEntity("Loop 323", path, 55, getLoopSector(anchors[i]));
-        }
-
-        // 2. Generate Spoke Arteries (connecting Downtown to Loop anchors)
-        // Broadway Axis (N/S)
-        createRoadEntity("N Broadway Ave", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.N_LOOP, 12), 40);
-        createRoadEntity("S Broadway Ave", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.S_LOOP, 15), 45);
-        
-        // SH-31 Axis (E/W)
-        createRoadEntity("E Front St (SH-31)", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.E_LOOP, 12), 45);
-        createRoadEntity("W Front St (SH-31)", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.W_LOOP, 12), 50);
-
-        // Diagonals
-        createRoadEntity("Troup Hwy", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.SE_LOOP, 10), 50);
-        createRoadEntity("Old Jacksonville Hwy", generateDensifiedPath([32.335, -95.3011], ANCHORS.SW_LOOP, 10), 50); // Starts slightly south of downtown
-
-        // Downtown Grid (simplified square)
-        const gridBox = [[32.355, -95.305], [32.355, -95.297], [32.347, -95.297], [32.347, -95.305], [32.355, -95.305]];
-        createRoadEntity("Downtown Grid", gridBox, 30);
-    }
-
-    function getLoopSector(latlng) {
-        if(latlng[0] > 32.38) return "N Loop 323";
-        if(latlng[0] < 32.32) return "S Loop 323";
-        if(latlng[1] > -95.27) return "E Loop 323";
-        return "W Loop 323";
-    }
-
-    function createRoadEntity(name, coords, baseSpeed, specificNameOverride = null) {
-        const displayName = specificNameOverride || name;
-        const depts = assignDepartments(displayName);
-
-        const roadObj = {
-            id: Math.random().toString(36).substr(2, 9),
-            name: displayName,
-            coords: coords,
-            baseSpeed: baseSpeed,
-            currentSpeed: baseSpeed,
-            departments: depts,
-            congestion: Math.random() * 0.2, // Start with slight variation
-            polyline: null
-        };
-
-        // Create Leaflet Polyline
-        const line = L.polyline(coords, {
-            color: '#2ecc71', // Initial Green
-            weight: 5,
-            opacity: 0.8,
-            lineCap: 'round',
-            lineJoin: 'round',
-            smoothFactor: 1
-        }).addTo(map);
-
-        // Popup
-        line.bindPopup(() => generatePopupContent(roadObj));
-        
-        // Hover effects
-        line.on('mouseover', function(e) { this.setStyle({ weight: 8, opacity: 1 }); });
-        line.on('mouseout', function(e) { updateRoadColor(roadObj); }); // Reset to correct color/weight
-
-        roadObj.polyline = line;
-        roadLayers.push(roadObj);
-    }
-
-    function assignDepartments(name) {
-        const d = ['PD']; // PD everywhere
-        if (name.includes('Loop')) d.push('TRAFFIC', 'ENG');
-        if (name.includes('Broadway') || name.includes('Front')) d.push('FIRE', 'TRAFFIC');
-        if (name.includes('Downtown')) d.push('STREETS');
-        return [...new Set(d)]; // Unique
-    }
-
-    // --- 3. INITIALIZATION ---
-
+    // --- 3. INIT ---
     function initMap() {
         map = L.map('map', {
             center: TYLER_CENTER,
@@ -287,185 +222,218 @@
             zoomControl: false,
             attributionControl: false
         });
-        
-        // CartoDB Dark Matter tiles
+
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             maxZoom: 19
         }).addTo(map);
-
         L.control.zoom({ position: 'topright' }).addTo(map);
-
-        alertLayerGroup = L.layerGroup().addTo(map);
 
         generateRoadNetwork();
         initWeather();
         
-        // Start Sim loop
+        // Start Loops
         updateSimulation();
         setInterval(updateSimulation, UPDATE_INTERVAL);
     }
 
-    // --- 4. SIMULATION LOGIC ---
+    function generateRoadNetwork() {
+        // Loop 323 Ring
+        const loopAnchors = [ANCHORS.N_LOOP, ANCHORS.NE_LOOP, ANCHORS.E_LOOP, ANCHORS.SE_LOOP, ANCHORS.S_LOOP, ANCHORS.SW_LOOP, ANCHORS.W_LOOP, ANCHORS.NW_LOOP, ANCHORS.N_LOOP];
+        for(let i=0; i<loopAnchors.length-1; i++) {
+            createRoadEntity("Loop 323", generateDensifiedPath(loopAnchors[i], loopAnchors[i+1], 8), 55);
+        }
 
-    function initWeather() {
-        for(let i=0; i<3; i++) createWeatherSystem();
+        // Arteries
+        createRoadEntity("N Broadway Ave", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.N_LOOP, 10), 40);
+        createRoadEntity("S Broadway Ave", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.S_LOOP, 15), 45);
+        createRoadEntity("E Front St (SH-31)", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.E_LOOP, 12), 45);
+        createRoadEntity("W Front St (SH-31)", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.W_LOOP, 12), 50);
+        createRoadEntity("Troup Hwy", generateDensifiedPath(ANCHORS.DOWNTOWN, ANCHORS.SE_LOOP, 10), 50);
+        createRoadEntity("Old Jacksonville", generateDensifiedPath([32.335, -95.3011], ANCHORS.SW_LOOP, 10), 50);
+        
+        // Grid
+        const grid = [[32.355, -95.305], [32.355, -95.297], [32.347, -95.297], [32.347, -95.305], [32.355, -95.305]];
+        createRoadEntity("Downtown Grid", grid, 30);
     }
 
-    function createWeatherSystem() {
-        // Start weather off-center and drift it
-        const startLat = TYLER_CENTER[0] + (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.1);
-        const startLng = TYLER_CENTER[1] + (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.1);
-        
-        const circle = L.circle([startLat, startLng], {
-            color: 'cyan', fillColor: '#3498db', fillOpacity: 0.2,
-            radius: 2000 + Math.random() * 3000, weight: 1, interactive: false
+    function createRoadEntity(name, coords, baseSpeed) {
+        // Roads are now department agnostic mostly, they just exist.
+        const roadObj = {
+            name: name,
+            coords: coords,
+            baseSpeed: baseSpeed,
+            currentSpeed: baseSpeed,
+            congestion: Math.random() * 0.1,
+            polyline: null
+        };
+
+        const line = L.polyline(coords, {
+            color: '#2ecc71', weight: 4, opacity: 0.8, lineCap: 'round', lineJoin: 'round'
         }).addTo(map);
 
-        weatherSystems.push({
-            layer: circle,
-            center: [startLat, startLng],
-            drift: [(Math.random()-0.5)*0.0015, (Math.random()-0.5)*0.0015]
-        });
+        line.bindPopup(() => `<b>${name}</b><br>Speed: ${Math.round(roadObj.currentSpeed)} mph`);
+        
+        roadObj.polyline = line;
+        roadLayers.push(roadObj);
+    }
+
+    // --- 4. SIMULATION ---
+    function initWeather() {
+        for(let i=0; i<3; i++) {
+            const sys = {
+                center: [TYLER_CENTER[0] + (Math.random()-0.5)*0.1, TYLER_CENTER[1] + (Math.random()-0.5)*0.1],
+                drift: [(Math.random()-0.5)*0.002, (Math.random()-0.5)*0.002]
+            };
+            sys.layer = L.circle(sys.center, {
+                color: 'cyan', fillColor: '#3498db', fillOpacity: 0.15, radius: 2500, weight: 0
+            }).addTo(map);
+            weatherSystems.push(sys);
+        }
     }
 
     function updateSimulation() {
         simulationTick++;
-        updateWeather();
+        
+        // Move Weather
+        weatherSystems.forEach(w => {
+            w.center[0] += w.drift[0];
+            w.center[1] += w.drift[1];
+            if(Math.abs(w.center[0]-TYLER_CENTER[0]) > 0.15) w.drift[0] *= -1;
+            if(Math.abs(w.center[1]-TYLER_CENTER[1]) > 0.15) w.drift[1] *= -1;
+            w.layer.setLatLng(w.center);
+        });
 
-        // Update Road Physics
+        // Update Roads
         roadLayers.forEach(road => {
-            let speedFactor = 1.0;
-            // Check middle of road segment for weather impact
-            const midPoint = road.coords[Math.floor(road.coords.length/2)];
-            if (isUnderWeather(midPoint)) speedFactor -= 0.25;
+            let speedMod = 1.0;
+            // Weather Check
+            const mid = road.coords[Math.floor(road.coords.length/2)];
+            const inWeather = weatherSystems.some(w => Math.abs(mid[0]-w.center[0]) < 0.03 && Math.abs(mid[1]-w.center[1]) < 0.03);
+            if(inWeather) speedMod -= 0.3;
 
-            // Dynamic congestion flux
-            if (Math.random() > 0.97) road.congestion = Math.min(1, road.congestion + 0.3); // Spike
-            else road.congestion = Math.max(0, road.congestion - 0.02); // Recovery
+            // Congestion Flux
+            if(Math.random() > 0.95) road.congestion = Math.min(1, road.congestion + 0.2);
+            else road.congestion = Math.max(0, road.congestion - 0.02);
 
-            // Calculate Speed
-            const effSpeed = road.baseSpeed * speedFactor * (1 - road.congestion);
-            road.currentSpeed = Math.max(5, effSpeed);
+            road.currentSpeed = Math.max(5, road.baseSpeed * speedMod * (1 - road.congestion));
             
-            updateRoadColor(road);
+            // Color Update
+            const ratio = road.currentSpeed / road.baseSpeed;
+            let col = '#2ecc71';
+            if(ratio < 0.75) col = '#f1c40f';
+            if(ratio < 0.5) col = '#e74c3c';
+            if(ratio < 0.25) col = '#8e44ad';
+            
+            road.polyline.setStyle({ color: col });
         });
 
-        // Generate Incident (Waze Style)
-        if (simulationTick % 6 === 0 && Math.random() > 0.3) {
-            generateIncidentReport();
-        }
+        // Generate Alert
+        if(simulationTick % 5 === 0 && Math.random() > 0.3) createAlert();
     }
 
-    function updateWeather() {
-        weatherSystems.forEach(sys => {
-            sys.center[0] += sys.drift[0];
-            sys.center[1] += sys.drift[1];
-            // Simple bounce bounds
-            if (Math.abs(sys.center[0] - TYLER_CENTER[0]) > 0.15) sys.drift[0] *= -1;
-            if (Math.abs(sys.center[1] - TYLER_CENTER[1]) > 0.15) sys.drift[1] *= -1;
-            sys.layer.setLatLng(sys.center);
-        });
-    }
+    // --- 5. ALERTS & FILTERING ---
 
-    function isUnderWeather(latlng) {
-        for(let w of weatherSystems) {
-             // Simple approximation for performance
-            if(Math.abs(latlng[0] - w.center[0]) < 0.03 && Math.abs(latlng[1] - w.center[1]) < 0.03) return true;
-        }
-        return false;
-    }
-
-    function updateRoadColor(road) {
-        const ratio = road.currentSpeed / road.baseSpeed;
-        let color = '#2ecc71'; // Green
-        let weight = 5;
+    function createAlert() {
+        // Pick a road
+        const road = roadLayers[Math.floor(Math.random() * roadLayers.length)];
+        // Pick an incident type
+        const type = INCIDENT_TYPES[Math.floor(Math.random() * INCIDENT_TYPES.length)];
         
-        if (ratio < 0.35) { color = '#8e44ad'; weight = 7; } // Gridlock
-        else if (ratio < 0.6) { color = '#e74c3c'; weight = 6; } // Heavy
-        else if (ratio < 0.85) { color = '#f1c40f'; weight = 5; } // Moderate
-        
-        // Filter Visibility check
-        const isVisible = activeFilter === 'all' || road.departments.includes(activeFilter);
-        road.polyline.setStyle({ 
-            color: color, 
-            opacity: isVisible ? 0.8 : 0.1,
-            weight: isVisible ? weight : 3
-        });
-    }
+        // Pick a point on that road
+        const idx = Math.floor(Math.random() * (road.coords.length - 1));
+        const lat = road.coords[idx][0];
+        const lng = road.coords[idx][1];
 
-    // --- 5. UI, REPORTS & ALERTS ---
-
-    const incidents = [
-        {type: "Accident Major", icon: "💥"}, {type: "Vehicle Stalled", icon: "🚗"},
-        {type: "Road Debris", icon: "⚠️"}, {type: "Traffic Signal Out", icon: "🚦"},
-        {type: "Heavy Congestion", icon: "🛑"}, {type: "Construction", icon: "🚧"}
-    ];
-
-    function generateIncidentReport() {
-        // Find congested roads
-        const candidates = roadLayers.filter(r => r.congestion > 0.4);
-        if (candidates.length === 0) return;
-
-        const road = candidates[Math.floor(Math.random() * candidates.length)];
-        const incident data = incidents[Math.floor(Math.random() * incidents.length)];
-        const confidence = Math.floor(Math.random() * 15) + 85;
-        
-        let severity = road.congestion > 0.7 ? 'high' : 'med';
-
-        // 1. Add to Sidebar Feed
-        const feed = document.getElementById('feed-container');
-        const item = document.createElement('div');
-        item.className = `feed-item sev-${severity}`;
-        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-        const tagsHtml = road.departments.map(d => `<span class="tag">${d}</span>`).join('');
-
-        item.innerHTML = `
-            <div class="feed-header"><span>${time}</span><span>${confidence}% Conf</span></div>
-            <div class="feed-street">${incident.icon} ${road.name}</div>
-            <div class="feed-detail">${incident.data.type} - Current Speed: ${Math.round(road.currentSpeed)} mph</div>
-            <div class="feed-tags">${tagsHtml}</div>
-        `;
-        feed.insertBefore(item, feed.firstChild);
-        if (feed.children.length > 15) feed.removeChild(feed.lastChild);
-
-        // 2. Add Alert Marker to Map (The fix for missing alerts)
-        const latlngs = road.polyline.getLatLngs();
-        // Pick a random point along the road segment
-        const incidentPoint = latlngs[Math.floor(Math.random() * (latlngs.length-1))];
-
-        const alertIcon = L.divIcon({
-            className: 'alert-marker-icon',
-            iconSize: [24, 24],
-            html: `<div style="text-align:center; line-height:24px; font-size:14px;">${incident.icon}</div>`
+        // Create Marker
+        // Primary Dept determines color
+        const mainDept = type.depts[0]; 
+        const iconDiv = L.divIcon({
+            className: `alert-marker marker-${mainDept}`,
+            iconSize: [30, 30],
+            html: type.icon
         });
 
-        const marker = L.marker(incidentPoint, {icon: alertIcon})
-            .bindPopup(`<b>${incident.data.type}</b><br>${road.name}<br>Confidence: ${confidence}%`)
-            .addTo(alertLayerGroup);
-
-        // Auto-remove marker after some time (simulation of incident clearing)
-        setTimeout(() => { alertLayerGroup.removeLayer(marker); }, 25000);
-    }
-
-    function generatePopupContent(road) {
-        return `
-            <div style="font-family: sans-serif; min-width: 180px;">
-                <h3 style="margin:0 0 8px 0; font-size:16px; border-bottom:2px solid ${road.polyline.options.color}">${road.name}</h3>
-                <div><strong>Speed:</strong> ${Math.round(road.currentSpeed)} / ${road.baseSpeed} mph</div>
-                <div><strong>Congestion:</strong> ${Math.round(road.congestion*100)}%</div>
-                <div style="margin-top:8px; font-size:0.9em"><strong>TEAMS:</strong> ${road.departments.join(', ')}</div>
+        const marker = L.marker([lat, lng], {icon: iconDiv});
+        
+        // Add to Sidebar
+        const feedContainer = document.getElementById('feed-container');
+        const feedItem = document.createElement('div');
+        feedItem.className = `feed-item sev-${type.severity}`;
+        const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        
+        feedItem.innerHTML = `
+            <div class="feed-header"><span>${timeStr}</span><span>New Report</span></div>
+            <div class="feed-street">${type.icon} ${road.name}</div>
+            <div class="feed-detail">${type.name}</div>
+            <div class="feed-tags">
+                ${type.depts.map(d => `<span class="tag">${d}</span>`).join('')}
             </div>
         `;
+
+        feedContainer.prepend(feedItem);
+        if(feedContainer.children.length > 15) feedContainer.removeChild(feedContainer.lastChild);
+
+        // Store Alert Object
+        const alertObj = {
+            id: Date.now() + Math.random(),
+            marker: marker,
+            depts: type.depts,
+            domItem: feedItem,
+            timestamp: Date.now()
+        };
+
+        activeAlerts.push(alertObj);
+        
+        // Add to map ONLY if filter matches
+        checkFilterAndDisplay(alertObj);
+
+        // Auto expire
+        setTimeout(() => removeAlert(alertObj), 30000);
     }
 
-    window.toggleLayer = function(dept) {
+    function removeAlert(alertObj) {
+        if(map.hasLayer(alertObj.marker)) map.removeLayer(alertObj.marker);
+        if(alertObj.domItem.parentNode) alertObj.domItem.parentNode.removeChild(alertObj.domItem);
+        activeAlerts = activeAlerts.filter(a => a.id !== alertObj.id);
+    }
+
+    function setFilter(dept) {
         activeFilter = dept;
-        document.querySelectorAll('.filter-btn').forEach(b => {
-            b.classList.toggle('active', b.textContent.toUpperCase().includes(dept) || (dept==='all' && b.textContent === 'All'));
+        
+        // Update Buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            const txt = btn.innerText.toUpperCase();
+            if(txt === dept.toUpperCase() || (dept === 'all' && txt === 'ALL')) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
         });
-        roadLayers.forEach(r => updateRoadColor(r));
+
+        // Update Visibility
+        activeAlerts.forEach(alert => checkFilterAndDisplay(alert));
     }
 
+    function checkFilterAndDisplay(alert) {
+        // Logic: Show if filter is ALL or if alert's departments include the filter
+        const shouldShow = (activeFilter === 'all') || alert.depts.includes(activeFilter);
+
+        // Map Marker
+        if (shouldShow) {
+            if (!map.hasLayer(alert.marker)) alert.marker.addTo(map);
+        } else {
+            if (map.hasLayer(alert.marker)) map.removeLayer(alert.marker);
+        }
+
+        // Sidebar Item
+        if (shouldShow) {
+            alert.domItem.classList.remove('hidden');
+        } else {
+            alert.domItem.classList.add('hidden');
+        }
+    }
+
+    // Run
     initMap();
 
 </script>
