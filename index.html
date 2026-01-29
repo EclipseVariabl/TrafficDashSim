@@ -66,19 +66,38 @@
     </div>
   </div>
 
-  <!-- MapLibre JS -->
+  <!-- MapLibre GL JS -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script>
     const map = new maplibregl.Map({
       container: 'map',
-      style: 'https://demotiles.maplibre.org/style.json', // free tiles
-      center: [-95.3011, 32.3513], // Tyler center [lng, lat]
+      style: {
+        version: 8,
+        sources: {
+          "raster-tiles": {
+            type: "raster",
+            tiles: [
+              "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            ],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors'
+          }
+        },
+        layers: [{
+          id: "osm-tiles",
+          type: "raster",
+          source: "raster-tiles",
+          minzoom: 0,
+          maxzoom: 19
+        }]
+      },
+      center: [-95.3011, 32.3513],
       zoom: 12
     });
-
-    // Add navigation controls
     map.addControl(new maplibregl.NavigationControl());
 
     const locations = [
@@ -122,7 +141,6 @@
     }
 
     function updateMap(){
-      // Remove old markers
       markers.forEach(m=>m.remove());
       markers=[];
       incidents.forEach(inc=>{
