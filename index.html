@@ -3,21 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyler, TX Traffic Dashboard Simulation</title>
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-o8CgkLrfkzN+TttrtWlkn5+0ul8x7gY2rtnp6d6tfMo=" crossorigin=""/>
+<title>Tyler, TX Traffic Simulation</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-  /* --- Dashboard Layout --- */
-  html, body { height: 100%; margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; }
-  #topbar { position: fixed; top:0; left:0; right:0; height:50px; background:#222; color:white; display:flex; align-items:center; padding:0 10px; z-index:1000; font-size:14px; }
+  html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#f4f4f4; }
+  #topbar { position:fixed; top:0; left:0; right:0; height:50px; background:#222; color:white; display:flex; align-items:center; padding:0 10px; z-index:1000; font-size:14px; }
   #topbar label { margin-right:15px; cursor:pointer; }
   #topbar input[type="checkbox"] { margin-right:5px; }
-  #map { position: absolute; top:50px; bottom:0; left:0; right:300px; }
-  #reports { position: fixed; top:50px; right:0; width:300px; bottom:0; background:#fff; border-left:1px solid #ccc; overflow-y:auto; padding:10px; font-size:13px; }
+  #sim-status { margin-left:auto; font-weight:bold; }
+  #map { position:absolute; top:50px; bottom:0; left:0; right:300px; }
+  #reports { position:fixed; top:50px; right:0; width:300px; bottom:0; background:#fff; border-left:1px solid #ccc; overflow-y:auto; padding:10px; font-size:13px; }
   #reports h3 { margin-top:0; font-size:16px; border-bottom:1px solid #ccc; padding-bottom:5px; }
   .report { border-bottom:1px solid #eee; padding:5px 0; }
-  .status { margin-left:auto; font-weight:bold; }
-  /* --- Traffic lines --- */
   .traffic-line { stroke-width:6; stroke-linecap:round; }
 </style>
 </head>
@@ -38,93 +35,13 @@
   <div id="report-list"></div>
 </div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1jE1GLf9R+L5YGe6/9Xw9IUX5kC8h2I+bgG6r0e0=" crossorigin=""></script>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // -----------------------------
-// --- Embedded GeoJSON Data ---
-// Simplified for demo: 20+ corridors with sample points
-// Each road has: name, geometry (lat/lng array), free_flow_speed, departments, confidence
-const roadData = [
-  {
-    name:"Broadway Ave",
-    geometry:[[32.3517,-95.3015],[32.3525,-95.3000],[32.3540,-95.2980]],
-    free_flow_speed:35,
-    departments:["Traffic","Streets"],
-    confidence:0.9
-  },
-  {
-    name:"Loop 323",
-    geometry:[[32.3420,-95.2780],[32.3600,-95.2800],[32.3750,-95.2900]],
-    free_flow_speed:55,
-    departments:["Traffic","Engineering"],
-    confidence:0.95
-  },
-  {
-    name:"SH-31",
-    geometry:[[32.3650,-95.3000],[32.3700,-95.3100],[32.3800,-95.3200]],
-    free_flow_speed:50,
-    departments:["Traffic","Streets"],
-    confidence:0.9
-  },
-  {
-    name:"Cumberland Rd",
-    geometry:[[32.3550,-95.2900],[32.3570,-95.2850],[32.3600,-95.2800]],
-    free_flow_speed:40,
-    departments:["Traffic","Streets"],
-    confidence:0.85
-  },
-  {
-    name:"Downtown 1st St",
-    geometry:[[32.3500,-95.3050],[32.3505,-95.3035],[32.3510,-95.3020]],
-    free_flow_speed:25,
-    departments:["Traffic","Police"],
-    confidence:0.95
-  },
-  {
-    name:"Old Jacksonville Hwy",
-    geometry:[[32.3700,-95.2900],[32.3725,-95.2950],[32.3750,-95.3000]],
-    free_flow_speed:45,
-    departments:["Traffic","Engineering"],
-    confidence:0.9
-  },
-  {
-    name:"Troup Hwy",
-    geometry:[[32.3800,-95.3100],[32.3820,-95.3150],[32.3850,-95.3200]],
-    free_flow_speed:50,
-    departments:["Traffic","Streets"],
-    confidence:0.88
-  },
-  {
-    name:"Gentry Pkwy",
-    geometry:[[32.3600,-95.3100],[32.3620,-95.3125],[32.3650,-95.3150]],
-    free_flow_speed:45,
-    departments:["Traffic","Engineering"],
-    confidence:0.9
-  },
-  {
-    name:"Beckham Rd",
-    geometry:[[32.3520,-95.2950],[32.3540,-95.2975],[32.3560,-95.3000]],
-    free_flow_speed:35,
-    departments:["Traffic","Streets"],
-    confidence:0.85
-  },
-  {
-    name:"University Blvd",
-    geometry:[[32.3450,-95.3000],[32.3475,-95.3020],[32.3500,-95.3050]],
-    free_flow_speed:40,
-    departments:["Traffic","Police"],
-    confidence:0.9
-  }
-  // Add more roads as needed to reach 20-25+
-];
-
-// -----------------------------
-// --- Configuration Constants ---
+// Configuration
 const simulationTick = 90000; // 90 seconds
-const subsegmentLength = 0.0005; // approximate densification spacing (~50m)
-const congestionColors = ["#00ff00","#ffff00","#ff8000","#ff0000"]; // green -> red
+const subsegmentLength = 0.0004; // ~40m
+const congestionColors = ["#00ff00","#ffff00","#ff8000","#ff0000"];
 const alertTypes = [
   "Police","Speed Trap","Traffic Stop","Crash","Severe Crash","Pile-up","Closure",
   "Construction / Utility","Debris","Pothole","Blocked Lane","Stopped Vehicle",
@@ -136,83 +53,87 @@ const alertColors = [
 ];
 
 // -----------------------------
-// --- Utility Functions ---
-
-// Compute distance between two lat/lng points in degrees (rough, ok for small city)
+// Helper Functions
 function distance(a,b){ return Math.sqrt(Math.pow(a[0]-b[0],2)+Math.pow(a[1]-b[1],2)); }
-
-// Densify geometry to evenly spaced subsegments
+function rand(min,max){ return Math.random()*(max-min)+min; }
 function densifyGeometry(geom){
-  let densified = [];
+  let densified=[];
   for(let i=0;i<geom.length-1;i++){
-    let start = geom[i];
-    let end = geom[i+1];
-    let dist = distance(start,end);
-    let steps = Math.max(Math.ceil(dist/subsegmentLength),1);
+    let start=geom[i], end=geom[i+1];
+    let dist=distance(start,end);
+    let steps=Math.max(Math.ceil(dist/subsegmentLength),1);
     for(let s=0;s<steps;s++){
-      let t = s/steps;
-      let lat = start[0]+(end[0]-start[0])*t;
-      let lng = start[1]+(end[1]-start[1])*t;
-      densified.push([lat,lng]);
+      let t=s/steps;
+      densified.push([start[0]+(end[0]-start[0])*t, start[1]+(end[1]-start[1])*t]);
     }
   }
   densified.push(geom[geom.length-1]);
   return densified;
 }
-
-// Random number helper
-function rand(min,max){ return Math.random()*(max-min)+min; }
-
-// -----------------------------
-// --- Map Initialization ---
-const map = L.map('map').setView([32.3517,-95.3015],13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  attribution:'&copy; OSM contributors'
-}).addTo(map);
-
-// Layer groups
-const trafficLayer = L.layerGroup().addTo(map);
-const alertLayer = L.layerGroup().addTo(map);
-
-// -----------------------------
-// --- Road & Traffic Initialization ---
-roadData.forEach(road=>{
-  road.densified = densifyGeometry(road.geometry);
-  // Initialize traffic speed (start at free flow)
-  road.densifiedSpeed = road.densified.map(()=>road.free_flow_speed);
-});
-
-// -----------------------------
-// --- Weather Simulation ---
-let weatherEnabled = true;
-const weatherZones = [
-  {center:[32.3550,-95.3000],radius:0.005,intensity:0.5}, // example
-  {center:[32.3700,-95.3100],radius:0.007,intensity:0.7}
-];
-
-// Check if a point is in a circular weather cell
 function inWeatherZone(latlng,zone){
-  let dx = latlng[0]-zone.center[0];
-  let dy = latlng[1]-zone.center[1];
+  let dx=latlng[0]-zone.center[0], dy=latlng[1]-zone.center[1];
   return Math.sqrt(dx*dx+dy*dy)<zone.radius;
 }
 
 // -----------------------------
-// --- Alerts / Reports ---
-let activeAlerts = [];
+// Map Initialization
+const map = L.map('map').setView([32.3517,-95.3015],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'&copy; OSM contributors' }).addTo(map);
+const trafficLayer = L.layerGroup().addTo(map);
+const alertLayer = L.layerGroup().addTo(map);
+
+// -----------------------------
+// Roads (Tyler-approximate coordinates, 25+ streets)
+const roadData=[
+  {name:"Broadway Ave", geometry:[[32.352,-95.301],[32.356,-95.301],[32.360,-95.300]], speed:35, departments:["Traffic","Streets"], confidence:0.9},
+  {name:"Loop 323 NW", geometry:[[32.370,-95.280],[32.360,-95.275],[32.355,-95.280]], speed:55, departments:["Traffic","Engineering"], confidence:0.95},
+  {name:"Loop 323 NE", geometry:[[32.355,-95.280],[32.360,-95.290],[32.370,-95.295]], speed:55, departments:["Traffic","Engineering"], confidence:0.95},
+  {name:"Loop 323 SE", geometry:[[32.370,-95.295],[32.375,-95.300],[32.380,-95.305]], speed:55, departments:["Traffic","Engineering"], confidence:0.95},
+  {name:"Loop 323 SW", geometry:[[32.380,-95.305],[32.370,-95.300],[32.360,-95.295]], speed:55, departments:["Traffic","Engineering"], confidence:0.95},
+  {name:"SH-31", geometry:[[32.365,-95.300],[32.370,-95.310],[32.380,-95.320]], speed:50, departments:["Traffic","Streets"], confidence:0.9},
+  {name:"Cumberland Rd", geometry:[[32.355,-95.290],[32.357,-95.285],[32.360,-95.280]], speed:40, departments:["Traffic","Streets"], confidence:0.85},
+  {name:"Downtown 1st St", geometry:[[32.350,-95.305],[32.351,-95.303],[32.352,-95.302]], speed:25, departments:["Traffic","Police"], confidence:0.95},
+  {name:"Downtown 2nd St", geometry:[[32.351,-95.3055],[32.352,-95.3035],[32.353,-95.3020]], speed:25, departments:["Traffic","Police"], confidence:0.95},
+  {name:"Downtown Erwin St", geometry:[[32.3505,-95.3045],[32.3525,-95.3040],[32.354,-95.3035]], speed:25, departments:["Traffic","Police"], confidence:0.95},
+  {name:"Old Jacksonville Hwy", geometry:[[32.370,-95.290],[32.372,-95.295],[32.375,-95.300]], speed:45, departments:["Traffic","Engineering"], confidence:0.9},
+  {name:"Troup Hwy", geometry:[[32.380,-95.310],[32.382,-95.315],[32.385,-95.320]], speed:50, departments:["Traffic","Streets"], confidence:0.88},
+  {name:"Gentry Pkwy", geometry:[[32.360,-95.310],[32.362,-95.312],[32.365,-95.315]], speed:45, departments:["Traffic","Engineering"], confidence:0.9},
+  {name:"Beckham Rd", geometry:[[32.352,-95.295],[32.354,-95.297],[32.356,-95.300]], speed:35, departments:["Traffic","Streets"], confidence:0.85},
+  {name:"University Blvd", geometry:[[32.345,-95.300],[32.347,-95.302],[32.350,-95.305]], speed:40, departments:["Traffic","Police"], confidence:0.9},
+  {name:"Front St", geometry:[[32.350,-95.306],[32.355,-95.307],[32.360,-95.308]], speed:30, departments:["Traffic","Police"], confidence:0.9},
+  {name:"Erwin St", geometry:[[32.351,-95.304],[32.355,-95.305],[32.358,-95.306]], speed:30, departments:["Traffic","Police"], confidence:0.9},
+  {name:"5th St", geometry:[[32.349,-95.306],[32.352,-95.308],[32.354,-95.309]], speed:25, departments:["Traffic","Police"], confidence:0.9},
+  {name:"6th St", geometry:[[32.348,-95.307],[32.351,-95.309],[32.353,-95.310]], speed:25, departments:["Traffic","Police"], confidence:0.9},
+  {name:"Beaumont Hwy", geometry:[[32.360,-95.300],[32.365,-95.302],[32.370,-95.305]], speed:45, departments:["Traffic","Streets"], confidence:0.85},
+  {name:"Pine St", geometry:[[32.353,-95.305],[32.355,-95.306],[32.357,-95.307]], speed:25, departments:["Traffic","Police"], confidence:0.9},
+  {name:"Oak St", geometry:[[32.354,-95.304],[32.356,-95.305],[32.358,-95.306]], speed:25, departments:["Traffic","Police"], confidence:0.9},
+  {name:"Maple Ave", geometry:[[32.355,-95.303],[32.357,-95.304],[32.359,-95.305]], speed:25, departments:["Traffic","Police"], confidence:0.9},
+  {name:"Tyler St", geometry:[[32.356,-95.302],[32.358,-95.303],[32.360,-95.304]], speed:25, departments:["Traffic","Police"], confidence:0.9},
+];
+
+// Densify roads
+roadData.forEach(r=>{ r.densified=densifyGeometry(r.geometry); r.densifiedSpeed=r.densified.map(()=>r.speed); });
+
+// -----------------------------
+// Weather
+let weatherEnabled=true;
+const weatherZones=[ {center:[32.355,-95.300],radius:0.005,intensity:0.5},{center:[32.370,-95.310],radius:0.007,intensity:0.7} ];
+
+// -----------------------------
+// Alerts
+let activeAlerts=[];
 function generateAlerts(){
-  activeAlerts = [];
+  activeAlerts=[];
   roadData.forEach(road=>{
-    // Randomly decide if alert occurs on this road
-    if(Math.random()<0.1){
-      let idx = Math.floor(Math.random()*road.densified.length);
-      let typeIdx = Math.floor(Math.random()*alertTypes.length);
+    if(Math.random()<0.12){ 
+      let idx=Math.floor(Math.random()*road.densified.length);
+      let typeIdx=Math.floor(Math.random()*alertTypes.length);
       activeAlerts.push({
         type:alertTypes[typeIdx],
         corridor:road.name,
         severity:Math.ceil(rand(1,5)),
         confidence:rand(0.7,0.99),
-        duration:rand(5,30), // minutes
+        duration:rand(5,30),
         department:road.departments[Math.floor(Math.random()*road.departments.length)],
         latlng:road.densified[idx]
       });
@@ -221,19 +142,16 @@ function generateAlerts(){
 }
 
 // -----------------------------
-// --- Render Functions ---
+// Render Functions
 function renderTraffic(){
   trafficLayer.clearLayers();
   roadData.forEach(road=>{
     for(let i=0;i<road.densified.length-1;i++){
-      let speed = road.densifiedSpeed[i];
-      let ratio = speed/road.free_flow_speed;
-      let colorIdx = Math.min(Math.floor((1-ratio)*congestionColors.length),congestionColors.length-1);
-      L.polyline([road.densified[i],road.densified[i+1]],{
-        color:congestionColors[colorIdx],
-        weight:6,
-        className:'traffic-line'
-      }).bindPopup(`<b>${road.name}</b><br>Speed: ${speed.toFixed(1)} mph<br>Departments: ${road.departments.join(", ")}`)
+      let speed=road.densifiedSpeed[i];
+      let ratio=speed/road.speed;
+      let colorIdx=Math.min(Math.floor((1-ratio)*congestionColors.length),congestionColors.length-1);
+      L.polyline([road.densified[i],road.densified[i+1]],{color:congestionColors[colorIdx],weight:6,className:'traffic-line'})
+        .bindPopup(`<b>${road.name}</b><br>Speed: ${speed.toFixed(1)} mph<br>Departments: ${road.departments.join(", ")}`)
         .addTo(trafficLayer);
     }
   });
@@ -241,80 +159,59 @@ function renderTraffic(){
 
 function renderAlerts(){
   alertLayer.clearLayers();
-  activeAlerts.forEach((alert,i)=>{
-    let color = alertColors[alertTypes.indexOf(alert.type)];
-    let marker = L.circleMarker(alert.latlng,{color:color,radius:8,fill:true,fillOpacity:1});
-    marker.bindPopup(`<b>${alert.type}</b><br>Corridor: ${alert.corridor}<br>Severity: ${alert.severity}<br>Confidence: ${alert.confidence.toFixed(2)}<br>Duration: ${alert.duration.toFixed(0)} min<br>Dept: ${alert.department}`);
-    marker.addTo(alertLayer);
+  let activeDepts=Array.from(document.querySelectorAll(".dept-filter:checked")).map(x=>x.value);
+  activeAlerts.forEach(alert=>{
+    if(!activeDepts.includes(alert.department)) return;
+    let color=alertColors[alertTypes.indexOf(alert.type)];
+    L.circleMarker(alert.latlng,{color:color,radius:8,fill:true,fillOpacity:1})
+      .bindPopup(`<b>${alert.type}</b><br>Corridor: ${alert.corridor}<br>Severity: ${alert.severity}<br>Confidence: ${alert.confidence.toFixed(2)}<br>Duration: ${alert.duration.toFixed(0)} min<br>Dept: ${alert.department}`)
+      .addTo(alertLayer);
+  });
+}
+
+function renderReports(){
+  let container=document.getElementById("report-list");
+  container.innerHTML="";
+  activeAlerts.forEach(alert=>{
+    container.innerHTML+=`<div class="report"><b>${alert.type}</b> on <b>${alert.corridor}</b><br>
+    Severity: ${alert.severity}, Confidence: ${alert.confidence.toFixed(2)}, Duration: ${alert.duration.toFixed(0)} min<br>
+    Dept: ${alert.department}</div>`;
   });
 }
 
 // -----------------------------
-// --- Simulation Tick ---
+// Simulation Step
 function simulationStep(){
-  document.getElementById("sim-status").innerText = "Running Simulation...";
-  // 1. Update traffic speeds
+  document.getElementById("sim-status").innerText="Running Simulation...";
   roadData.forEach(road=>{
     for(let i=0;i<road.densifiedSpeed.length;i++){
-      // Random small fluctuation
-      let fluct = rand(-5,5);
-      road.densifiedSpeed[i] = Math.max(5,Math.min(road.free_flow_speed,road.densifiedSpeed[i]+fluct));
-      // Apply weather effects
+      let fluct=rand(-5,5);
+      road.densifiedSpeed[i]=Math.max(5,Math.min(road.speed,road.densifiedSpeed[i]+fluct));
       if(weatherEnabled){
         weatherZones.forEach(zone=>{
           if(inWeatherZone(road.densified[i],zone)){
-            road.densifiedSpeed[i] *= (1-zone.intensity);
+            road.densifiedSpeed[i]*=(1-zone.intensity);
           }
         });
       }
     }
   });
-  // 2. Generate alerts
   generateAlerts();
-  // 3. Render
   renderTraffic();
   renderAlerts();
   renderReports();
 }
 
 // -----------------------------
-// --- Reports Panel ---
-function renderReports(){
-  let container = document.getElementById("report-list");
-  container.innerHTML = "";
-  activeAlerts.forEach(alert=>{
-    let div = document.createElement("div");
-    div.className="report";
-    div.innerHTML = `<b>${alert.type}</b> on <b>${alert.corridor}</b><br>
-                     Severity: ${alert.severity}, Confidence: ${alert.confidence.toFixed(2)}, Duration: ${alert.duration.toFixed(0)} min<br>
-                     Dept: ${alert.department}`;
-    container.appendChild(div);
-  });
-}
+// Event Listeners
+document.getElementById("weather-toggle").addEventListener("change",e=>weatherEnabled=e.target.checked);
+document.querySelectorAll(".dept-filter").forEach(cb=>cb.addEventListener("change",renderAlerts));
 
 // -----------------------------
-// --- UI Event Handlers ---
-document.getElementById("weather-toggle").addEventListener("change",(e)=>{
-  weatherEnabled=e.target.checked;
-});
-
-document.querySelectorAll(".dept-filter").forEach(cb=>{
-  cb.addEventListener("change",()=>{
-    let activeDepts = Array.from(document.querySelectorAll(".dept-filter:checked")).map(x=>x.value);
-    // Filter alerts
-    activeAlerts.forEach(marker=>{
-      // No per-marker layer filter in this simple demo, could be enhanced
-    });
-    renderAlerts();
-  });
-});
-
-// -----------------------------
-// --- Initial Render ---
+// Initial Run & Interval
 simulationStep();
 setInterval(simulationStep,simulationTick);
 
 </script>
-
 </body>
 </html>
