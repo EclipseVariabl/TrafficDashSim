@@ -1292,7 +1292,7 @@
 
     function generateAlerts() {
       alerts = [];
-      const alertCount = 15 + Math.floor(Math.random() * 10);
+      const alertCount = 1 + Math.floor(Math.random() * 7);
       for (let i = 0; i < alertCount; i++) {
         const corridor = corridors[Math.floor(Math.random() * corridors.length)];
         const coord = pickRandomCoordinateForAlert(corridor.name);
