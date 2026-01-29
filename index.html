@@ -80,6 +80,7 @@ canvas{border-radius:6px;background:#f9f9f9;}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+// --- Map setup ---
 const map = new maplibregl.Map({
   container: 'map',
   style: {
@@ -88,12 +89,12 @@ const map = new maplibregl.Map({
       "raster-tiles": {
         type: "raster",
         tiles: [
-          "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-          "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-          "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          "https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png",
+          "https://cartodb-basemaps-b.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png",
+          "https://cartodb-basemaps-c.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png"
         ],
         tileSize: 256,
-        attribution: '© OpenStreetMap contributors'
+        attribution: '© OpenStreetMap contributors © CARTO'
       }
     },
     layers: [{
@@ -109,6 +110,7 @@ const map = new maplibregl.Map({
 });
 map.addControl(new maplibregl.NavigationControl());
 
+// --- Locations & Reports ---
 const locations = [
   {name:"Broadway & Bois D'Arc", loc:[-95.3011,32.3513]},
   {name:"Old Jacksonville Hwy & Garden Valley Rd", loc:[-95.282,32.3145]},
@@ -123,17 +125,22 @@ const locations = [
 ];
 
 const reportTypes = [
-  {type:"Accident", color:"#e74c3c", depts:["PD/Fire","Traffic"]},
-  {type:"Construction", color:"#d35400", depts:["Streets","Traffic","Engineering"]},
-  {type:"Heavy Traffic", color:"#f1c40f", depts:["Traffic","Streets","GIS"]},
-  {type:"Disabled Vehicle", color:"#3498db", depts:["PD/Fire","Traffic"]},
-  {type:"Police", color:"#8e44ad", depts:["PD/Fire"]},
-  {type:"Hazard", color:"#16a085", depts:["PD/Fire","Traffic"]},
-  {type:"Weather", color:"#2980b9", depts:["Traffic","GIS"]},
-  {type:"Road Closure", color:"#c0392b", depts:["Streets","Traffic","Engineering"]}
+  {type:"Accident: Minor Collision", color:"#e74c3c", depts:["PD/Fire","Traffic"], impact:0.6},
+  {type:"Accident: Major Collision", color:"#c0392b", depts:["PD/Fire","Traffic"], impact:0.8},
+  {type:"Road Closure: Event", color:"#c0392b", depts:["Streets","Traffic","Engineering"], impact:0.7},
+  {type:"Road Closure: Construction", color:"#d35400", depts:["Streets","Traffic","Engineering"], impact:0.5},
+  {type:"Hazard: Debris", color:"#16a085", depts:["PD/Fire","Traffic"], impact:0.3},
+  {type:"Hazard: Fallen Tree", color:"#16a085", depts:["PD/Fire","Traffic"], impact:0.4},
+  {type:"Hazard: Animal on Road", color:"#16a085", depts:["PD/Fire","Traffic"], impact:0.3},
+  {type:"Police: Speed Trap", color:"#8e44ad", depts:["PD/Fire"], impact:0.2},
+  {type:"Police: Accident Investigation", color:"#8e44ad", depts:["PD/Fire"], impact:0.3},
+  {type:"Weather: Fog", color:"#2980b9", depts:["Traffic","GIS"], impact:0.2},
+  {type:"Weather: Rain", color:"#3498db", depts:["Traffic","GIS"], impact:0.3},
+  {type:"Disabled Vehicle", color:"#f1c40f", depts:["PD/Fire","Traffic"], impact:0.3},
+  {type:"Heavy Traffic", color:"#f39c12", depts:["Traffic","Streets","GIS"], impact:0.4}
 ];
 
-const criticalTypes = ["Accident","Road Closure","Hazard","Police"];
+const criticalTypes = ["Accident: Minor Collision","Accident: Major Collision","Road Closure: Event","Road Closure: Construction","Hazard: Debris","Hazard: Fallen Tree","Hazard: Animal on Road","Police: Speed Trap","Police: Accident Investigation"];
 
 let incidents = [];
 let markers = [];
@@ -147,30 +154,56 @@ function simulateIncidents(){
   for(let i=0;i<Math.max(0,needed);i++){
     const type = reportTypes[Math.floor(Math.random()*reportTypes.length)];
     const loc = locations[Math.floor(Math.random()*locations.length)];
-    incidents.push({id: now.getTime()+i, type:type.type, color:type.color, depts:type.depts, location: loc.loc, name: loc.name, timestamp: now});
+    incidents.push({id: now.getTime()+i, type:type.type, color:type.color, depts:type.depts, location: loc.loc, name: loc.name, timestamp: now, impact:type.impact});
   }
 }
 
+// --- Update Map ---
 function updateMap(){
+  // Remove old markers
   markers.forEach(m=>m.remove());
   markers=[];
-  incidents.forEach(inc=>{
-    const el = document.createElement('div');
-    el.style.backgroundColor = inc.color;
-    el.style.width = '14px';
-    el.style.height = '14px';
-    el.style.borderRadius = '50%';
-    el.style.border = '2px solid white';
-    el.style.cursor = 'pointer';
 
-    // Critical alerts: pulsing
+  // Remove old heatmap source/layer if exists
+  if(map.getLayer('heatmap-layer')) map.removeLayer('heatmap-layer');
+  if(map.getSource('incidents-heat')) map.removeSource('incidents-heat');
+
+  // Add heatmap source
+  map.addSource('incidents-heat', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: incidents.map(i=>({type:'Feature', properties:{type:i.type,color:i.color}, geometry:{type:'Point', coordinates:i.location}}))
+    }
+  });
+  map.addLayer({
+    id:'heatmap-layer',
+    type:'heatmap',
+    source:'incidents-heat',
+    maxzoom:15,
+    paint:{
+      'heatmap-weight':['interpolate',['linear'], ['get','type'],0,0,1,1],
+      'heatmap-intensity':1,
+      'heatmap-radius':20,
+      'heatmap-opacity':0.6
+    }
+  });
+
+  // Add markers
+  incidents.forEach(inc=>{
+    const el=document.createElement('div');
+    el.style.backgroundColor=inc.color;
+    el.style.width='14px';
+    el.style.height='14px';
+    el.style.borderRadius='50%';
+    el.style.border='2px solid white';
+    el.style.cursor='pointer';
     if(criticalTypes.includes(inc.type)){
       el.classList.add("alert-marker");
       el.style.width='20px';
       el.style.height='20px';
     }
-
-    const marker = new maplibregl.Marker(el)
+    const marker=new maplibregl.Marker(el)
       .setLngLat(inc.location)
       .setPopup(new maplibregl.Popup({offset:25}).setHTML(`<strong>${inc.type}</strong><br>${inc.name}<br>${inc.timestamp.toLocaleTimeString()}`))
       .addTo(map);
@@ -178,14 +211,14 @@ function updateMap(){
   });
 }
 
+// --- Update Panel ---
 function updatePanel(){
   const container=document.getElementById("incidents");
   container.innerHTML="";
   const active = Array.from(document.querySelectorAll(".filter-btn.active")).map(b=>b.dataset.dept);
-  // Critical incidents on top
   const critical = incidents.filter(i=>criticalTypes.includes(i.type) && i.depts.some(d=>active.includes(d)));
   const nonCritical = incidents.filter(i=>!criticalTypes.includes(i.type) && i.depts.some(d=>active.includes(d)));
-  const ordered = [...critical,...nonCritical].sort((a,b)=>b.timestamp-a.timestamp);
+  const ordered=[...critical,...nonCritical].sort((a,b)=>b.timestamp-a.timestamp);
 
   ordered.forEach(inc=>{
     const div=document.createElement("div");
@@ -197,22 +230,26 @@ function updatePanel(){
   });
 }
 
-// Chart
+// --- Chart ---
 const ctx=document.getElementById('trafficChart').getContext('2d');
 const chart=new Chart(ctx,{
   type:'line',
   data:{labels:[],datasets:[{label:'Avg Speed (mph)',data:[],borderColor:'#3498db',backgroundColor:'rgba(52,152,219,0.2)',tension:0.3,fill:true}]},
   options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:70}}}
 });
+
 function updateChart(){
   const now=new Date();
-  const speed = Math.max(10,50-Math.random()*15-incidents.length);
+  let speed=50;
+  incidents.forEach(i=>{speed-=i.impact*5;});
+  speed=Math.max(10,speed-Math.random()*5);
   chart.data.labels.push(now.toLocaleTimeString());
   chart.data.datasets[0].data.push(speed);
-  while(chart.data.labels.length>10){chart.data.labels.shift();chart.data.datasets[0].data.shift();}
+  while(chart.data.labels.length>10){chart.data.labels.shift(); chart.data.datasets[0].data.shift();}
   chart.update();
 }
 
+// Timestamp
 function updateTimestamp(){
   const now=new Date();
   document.getElementById("lastUpdate").innerText=`Last update: ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
@@ -241,6 +278,7 @@ document.getElementById("exportBtn").addEventListener("click", ()=>{
 function mainLoop(){simulateIncidents();updateMap();updatePanel();updateChart();updateTimestamp();}
 mainLoop();
 setInterval(mainLoop,60000);
+
 </script>
 </body>
 </html>
