@@ -2,283 +2,215 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Tyler, TX Traffic Dashboard (Simulated)</title>
+<title>Tyler, TX – Traffic Operations Simulator</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet"/>
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-html, body { height:100%; margin:0; padding:0; }
-body { font-family:'Inter',sans-serif; display:flex; flex-direction:column; background:#f0f2f5; }
+html,body{margin:0;height:100%;font-family:Inter,system-ui;}
+#app{display:flex;flex-direction:column;height:100%}
+header{background:#1f2d3d;color:white;padding:10px 16px}
+main{flex:1;display:flex;min-height:0}
+#map{flex:2}
+#side{flex:1;overflow:auto;background:#f5f7fa;padding:10px}
+.card{background:white;border-radius:8px;padding:10px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.incident{padding:6px;border-left:6px solid;margin-bottom:6px;background:#fafafa}
+.alert{font-weight:600}
 
-#header {
-  background:#2c3e50; color:white; padding:10px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
-}
-#header h1{margin:0;font-size:20px;}
-#header p{margin:0;font-size:14px;opacity:0.8;}
-#filters{margin-top:5px;}
-.filter-btn{background:#34495e;color:white;border:none;padding:5px 10px;margin-right:5px;border-radius:5px;cursor:pointer;font-size:13px;}
-.filter-btn.active{background:#1abc9c;}
-
-#container{display:flex; flex:1; min-height:0; overflow:hidden;}
-#map{flex:2; min-height:0;}
-#dashboard{flex:1; display:flex; flex-direction:column; padding:10px; gap:10px; overflow-y:auto; min-height:0;}
-
-.card{background:white;border-radius:10px;padding:10px;box-shadow:0 4px 12px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
-.card h2{margin:0 0 10px 0;font-size:16px;font-weight:600;}
-#incidents{flex:1;overflow-y:auto;margin-bottom:5px;}
-.incident{padding:8px;margin-bottom:8px;border-radius:6px;background:#f9f9f9;border-left:6px solid red;transition: transform 0.2s;}
-.incident:hover{transform:translateX(3px);}
-canvas{border-radius:6px;background:#f9f9f9;}
-#exportBtn{background:#3498db;color:white;border:none;padding:6px 10px;border-radius:5px;cursor:pointer;font-size:13px;margin-top:5px;}
-#exportBtn:hover{background:#2980b9;}
-
-/* Pulsing alert markers */
-@keyframes pulse {
-  0% { transform: scale(0.9); opacity:0.7; }
-  50% { transform: scale(1.3); opacity:1; }
-  100% { transform: scale(0.9); opacity:0.7; }
-}
-.alert-marker {
-  animation: pulse 1.5s infinite;
-  border-radius:50%;
+.alert-marker{
+  width:20px;height:20px;border-radius:50%;
   border:3px solid white;
+  animation:pulse 1.4s infinite;
+}
+@keyframes pulse{
+  0%{transform:scale(.9);opacity:.6}
+  50%{transform:scale(1.3);opacity:1}
+  100%{transform:scale(.9);opacity:.6}
 }
 </style>
 </head>
 <body>
+<div id="app">
+<header>
+  <strong>Tyler, TX – Traffic / Engineering / Public Safety Simulator</strong>
+  <div id="status">Initializing…</div>
+</header>
 
-<div id="header">
-  <h1>Tyler, TX Traffic Dashboard (Simulated)</h1>
-  <p id="lastUpdate">Last update: --:--</p>
-  <div id="filters">
-    <button class="filter-btn active" data-dept="Traffic">Traffic</button>
-    <button class="filter-btn active" data-dept="Streets">Streets</button>
-    <button class="filter-btn active" data-dept="PD/Fire">PD/Fire</button>
-    <button class="filter-btn active" data-dept="Engineering">Engineering</button>
-    <button class="filter-btn active" data-dept="GIS">GIS</button>
-  </div>
-</div>
-
-<div id="container">
+<main>
   <div id="map"></div>
-  <div id="dashboard">
+  <div id="side">
     <div class="card">
-      <h2>Traffic Incidents</h2>
-      <div id="incidents"></div>
-      <button id="exportBtn">Export Incidents (CSV)</button>
+      <h3>Active Reports</h3>
+      <div id="list"></div>
     </div>
     <div class="card">
-      <h2>Traffic Flow — Avg Speed</h2>
-      <canvas id="trafficChart" height="200"></canvas>
+      <h3>Average Traffic Speed (mph)</h3>
+      <canvas id="chart"></canvas>
     </div>
   </div>
+</main>
 </div>
-
-<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-// --- Map setup ---
+/* ---------------- MAP ---------------- */
 const map = new maplibregl.Map({
-  container: 'map',
-  style: {
-    version: 8,
-    sources: {
-      "raster-tiles": {
-        type: "raster",
-        tiles: [
-          "https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png",
-          "https://cartodb-basemaps-b.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png",
-          "https://cartodb-basemaps-c.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png"
+  container:'map',
+  center:[-95.3011,32.3513],
+  zoom:12,
+  style:{
+    version:8,
+    sources:{
+      base:{
+        type:'raster',
+        tiles:[
+          "https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png"
         ],
-        tileSize: 256,
-        attribution: '© OpenStreetMap contributors © CARTO'
+        tileSize:256
       }
     },
-    layers: [{
-      id: "osm-tiles",
-      type: "raster",
-      source: "raster-tiles",
-      minzoom: 0,
-      maxzoom: 19
-    }]
-  },
-  center: [-95.3011,32.3513],
-  zoom: 12
+    layers:[{id:'base',type:'raster',source:'base'}]
+  }
 });
 map.addControl(new maplibregl.NavigationControl());
 
-// --- Locations & Reports ---
-const locations = [
-  {name:"Broadway & Bois D'Arc", loc:[-95.3011,32.3513]},
-  {name:"Old Jacksonville Hwy & Garden Valley Rd", loc:[-95.282,32.3145]},
-  {name:"South Broadway & 1st St", loc:[-95.300,32.312]},
-  {name:"Loop 323 & Troup Hwy", loc:[-95.260,32.341]},
-  {name:"Caldwell St & Front St", loc:[-95.290,32.345]},
-  {name:"Southwest Tyler near MLK Blvd", loc:[-95.320,32.308]},
-  {name:"East 5th St & Timber Ln", loc:[-95.270,32.364]},
-  {name:"Cumberland Rd & Grande Blvd", loc:[-95.290,32.366]},
-  {name:"Rusk St & College St", loc:[-95.310,32.352]},
-  {name:"Caldwell St & Ross Ave", loc:[-95.295,32.348]}
+/* ---------------- DATA ---------------- */
+const locations=[
+  ["Broadway & Bois D'Arc",-95.3011,32.3513],
+  ["Loop 323 & Troup Hwy",-95.260,32.341],
+  ["Old Jacksonville & Garden Valley",-95.282,32.3145],
+  ["Caldwell & Front",-95.290,32.345],
+  ["MLK & Gentry",-95.320,32.308],
+  ["Grande & Cumberland",-95.290,32.366],
+  ["Rusk & College",-95.310,32.352],
+  ["E 5th & Timber",-95.270,32.364]
 ];
 
-const reportTypes = [
-  {type:"Accident: Minor Collision", color:"#e74c3c", depts:["PD/Fire","Traffic"], impact:0.6},
-  {type:"Accident: Major Collision", color:"#c0392b", depts:["PD/Fire","Traffic"], impact:0.8},
-  {type:"Road Closure: Event", color:"#c0392b", depts:["Streets","Traffic","Engineering"], impact:0.7},
-  {type:"Road Closure: Construction", color:"#d35400", depts:["Streets","Traffic","Engineering"], impact:0.5},
-  {type:"Hazard: Debris", color:"#16a085", depts:["PD/Fire","Traffic"], impact:0.3},
-  {type:"Hazard: Fallen Tree", color:"#16a085", depts:["PD/Fire","Traffic"], impact:0.4},
-  {type:"Hazard: Animal on Road", color:"#16a085", depts:["PD/Fire","Traffic"], impact:0.3},
-  {type:"Police: Speed Trap", color:"#8e44ad", depts:["PD/Fire"], impact:0.2},
-  {type:"Police: Accident Investigation", color:"#8e44ad", depts:["PD/Fire"], impact:0.3},
-  {type:"Weather: Fog", color:"#2980b9", depts:["Traffic","GIS"], impact:0.2},
-  {type:"Weather: Rain", color:"#3498db", depts:["Traffic","GIS"], impact:0.3},
-  {type:"Disabled Vehicle", color:"#f1c40f", depts:["PD/Fire","Traffic"], impact:0.3},
-  {type:"Heavy Traffic", color:"#f39c12", depts:["Traffic","Streets","GIS"], impact:0.4}
+const types=[
+ {t:"Accident – Major",c:"#c0392b",impact:0.8,critical:true},
+ {t:"Accident – Minor",c:"#e74c3c",impact:0.5,critical:true},
+ {t:"Road Closure – Emergency",c:"#8e0000",impact:0.9,critical:true},
+ {t:"Road Closure – Construction",c:"#d35400",impact:0.6,critical:true},
+ {t:"Hazard – Debris",c:"#16a085",impact:0.3,critical:true},
+ {t:"Hazard – Fallen Tree",c:"#1abc9c",impact:0.4,critical:true},
+ {t:"Police – Speed Trap",c:"#8e44ad",impact:0.2,critical:true},
+ {t:"Police – Traffic Stop",c:"#9b59b6",impact:0.3,critical:true},
+ {t:"Weather – Heavy Rain",c:"#3498db",impact:0.4},
+ {t:"Weather – Fog",c:"#5dade2",impact:0.3},
+ {t:"Disabled Vehicle",c:"#f1c40f",impact:0.3},
+ {t:"Heavy Traffic",c:"#f39c12",impact:0.5}
 ];
 
-const criticalTypes = ["Accident: Minor Collision","Accident: Major Collision","Road Closure: Event","Road Closure: Construction","Hazard: Debris","Hazard: Fallen Tree","Hazard: Animal on Road","Police: Speed Trap","Police: Accident Investigation"];
+let incidents=[];
+let markers=[];
 
-let incidents = [];
-let markers = [];
-
-function simulateIncidents(){
-  const target = Math.floor(Math.random()*19)+2;
-  const now = new Date();
-  const cutoff = new Date(now.getTime()-10*60*1000);
-  incidents = incidents.filter(i=>i.timestamp>cutoff);
-  const needed = target - incidents.length;
-  for(let i=0;i<Math.max(0,needed);i++){
-    const type = reportTypes[Math.floor(Math.random()*reportTypes.length)];
-    const loc = locations[Math.floor(Math.random()*locations.length)];
-    incidents.push({id: now.getTime()+i, type:type.type, color:type.color, depts:type.depts, location: loc.loc, name: loc.name, timestamp: now, impact:type.impact});
-  }
-}
-
-// --- Update Map ---
-function updateMap(){
-  // Remove old markers
-  markers.forEach(m=>m.remove());
-  markers=[];
-
-  // Remove old heatmap source/layer if exists
-  if(map.getLayer('heatmap-layer')) map.removeLayer('heatmap-layer');
-  if(map.getSource('incidents-heat')) map.removeSource('incidents-heat');
-
-  // Add heatmap source
-  map.addSource('incidents-heat', {
-    type: 'geojson',
-    data: {
-      type: 'FeatureCollection',
-      features: incidents.map(i=>({type:'Feature', properties:{type:i.type,color:i.color}, geometry:{type:'Point', coordinates:i.location}}))
-    }
+/* ---------------- HEATMAP ---------------- */
+map.on('load',()=>{
+  map.addSource('heat',{
+    type:'geojson',
+    data:{type:'FeatureCollection',features:[]}
   });
   map.addLayer({
-    id:'heatmap-layer',
+    id:'heat-layer',
     type:'heatmap',
-    source:'incidents-heat',
-    maxzoom:15,
+    source:'heat',
     paint:{
-      'heatmap-weight':['interpolate',['linear'], ['get','type'],0,0,1,1],
-      'heatmap-intensity':1,
       'heatmap-radius':20,
+      'heatmap-intensity':1,
       'heatmap-opacity':0.6
     }
   });
+});
 
-  // Add markers
-  incidents.forEach(inc=>{
+/* ---------------- SIMULATION ---------------- */
+function generate(){
+  const now=Date.now();
+  incidents=incidents.filter(i=>now-i.time<600000);
+
+  while(incidents.length<Math.floor(Math.random()*18)+2){
+    const l=locations[Math.floor(Math.random()*locations.length)];
+    const t=types[Math.floor(Math.random()*types.length)];
+    incidents.push({
+      id:Math.random(),
+      type:t,
+      name:l[0],
+      coords:[l[1],l[2]],
+      time:now
+    });
+  }
+}
+
+function draw(){
+  markers.forEach(m=>m.remove());
+  markers=[];
+
+  incidents.forEach(i=>{
     const el=document.createElement('div');
-    el.style.backgroundColor=inc.color;
-    el.style.width='14px';
-    el.style.height='14px';
+    el.style.background=i.type.c;
+    el.style.width=i.type.critical?'20px':'14px';
+    el.style.height=i.type.critical?'20px':'14px';
     el.style.borderRadius='50%';
     el.style.border='2px solid white';
-    el.style.cursor='pointer';
-    if(criticalTypes.includes(inc.type)){
-      el.classList.add("alert-marker");
-      el.style.width='20px';
-      el.style.height='20px';
-    }
-    const marker=new maplibregl.Marker(el)
-      .setLngLat(inc.location)
-      .setPopup(new maplibregl.Popup({offset:25}).setHTML(`<strong>${inc.type}</strong><br>${inc.name}<br>${inc.timestamp.toLocaleTimeString()}`))
-      .addTo(map);
-    markers.push(marker);
+    if(i.type.critical)el.className='alert-marker';
+
+    markers.push(
+      new maplibregl.Marker(el)
+        .setLngLat(i.coords)
+        .setPopup(new maplibregl.Popup({offset:25})
+        .setHTML(`<strong>${i.type.t}</strong><br>${i.name}`))
+        .addTo(map)
+    );
   });
+
+  map.getSource('heat').setData({
+    type:'FeatureCollection',
+    features:incidents.map(i=>({
+      type:'Feature',
+      geometry:{type:'Point',coordinates:i.coords}
+    }))
+  });
+
+  document.getElementById('list').innerHTML=
+    incidents
+      .sort((a,b)=>b.time-a.time)
+      .map(i=>`<div class="incident ${i.type.critical?'alert':''}" style="border-color:${i.type.c}">
+        ${i.type.t}<br><small>${i.name}</small>
+      </div>`).join('');
 }
 
-// --- Update Panel ---
-function updatePanel(){
-  const container=document.getElementById("incidents");
-  container.innerHTML="";
-  const active = Array.from(document.querySelectorAll(".filter-btn.active")).map(b=>b.dataset.dept);
-  const critical = incidents.filter(i=>criticalTypes.includes(i.type) && i.depts.some(d=>active.includes(d)));
-  const nonCritical = incidents.filter(i=>!criticalTypes.includes(i.type) && i.depts.some(d=>active.includes(d)));
-  const ordered=[...critical,...nonCritical].sort((a,b)=>b.timestamp-a.timestamp);
-
-  ordered.forEach(inc=>{
-    const div=document.createElement("div");
-    div.className="incident";
-    div.style.borderLeftColor=inc.color;
-    if(criticalTypes.includes(inc.type)) div.style.fontWeight='600';
-    div.innerHTML=`<strong>${inc.type}</strong> at ${inc.name}<br>${inc.timestamp.toLocaleTimeString()}`;
-    container.appendChild(div);
-  });
-}
-
-// --- Chart ---
-const ctx=document.getElementById('trafficChart').getContext('2d');
-const chart=new Chart(ctx,{
+/* ---------------- CHART ---------------- */
+const chart=new Chart(document.getElementById('chart'),{
   type:'line',
-  data:{labels:[],datasets:[{label:'Avg Speed (mph)',data:[],borderColor:'#3498db',backgroundColor:'rgba(52,152,219,0.2)',tension:0.3,fill:true}]},
-  options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:70}}}
+  data:{labels:[],datasets:[{data:[],borderColor:'#3498db',fill:true}]},
+  options:{plugins:{legend:{display:false}},scales:{y:{min:5,max:60}}}
 });
 
 function updateChart(){
-  const now=new Date();
   let speed=50;
-  incidents.forEach(i=>{speed-=i.impact*5;});
-  speed=Math.max(10,speed-Math.random()*5);
-  chart.data.labels.push(now.toLocaleTimeString());
+  incidents.forEach(i=>speed-=i.type.impact*5);
+  speed=Math.max(10,speed-Math.random()*4);
+  chart.data.labels.push(new Date().toLocaleTimeString());
   chart.data.datasets[0].data.push(speed);
-  while(chart.data.labels.length>10){chart.data.labels.shift(); chart.data.datasets[0].data.shift();}
+  if(chart.data.labels.length>10){
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
   chart.update();
 }
 
-// Timestamp
-function updateTimestamp(){
-  const now=new Date();
-  document.getElementById("lastUpdate").innerText=`Last update: ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+/* ---------------- LOOP ---------------- */
+function tick(){
+  generate();
+  draw();
+  updateChart();
+  document.getElementById('status').textContent=
+    `Active reports: ${incidents.length} | Updated ${new Date().toLocaleTimeString()}`;
 }
 
-// Filters
-document.querySelectorAll(".filter-btn").forEach(btn=>{
-  btn.addEventListener("click",()=>{
-    btn.classList.toggle("active");
-    updatePanel();
-  });
-});
-
-// CSV export
-document.getElementById("exportBtn").addEventListener("click", ()=>{
-  let csv="Type,Location,Departments,Time\n";
-  incidents.forEach(i=>csv+=`${i.type},"${i.name}","${i.depts.join(";")}",${i.timestamp.toLocaleTimeString()}\n`);
-  const blob=new Blob([csv],{type:"text/csv"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url; a.download="tyler_incidents.csv"; a.click();
-  URL.revokeObjectURL(url);
-});
-
-// Main loop
-function mainLoop(){simulateIncidents();updateMap();updatePanel();updateChart();updateTimestamp();}
-mainLoop();
-setInterval(mainLoop,60000);
-
+tick();
+setInterval(tick,60000);
 </script>
 </body>
 </html>
