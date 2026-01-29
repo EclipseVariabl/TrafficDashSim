@@ -3,25 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tyler TX Precision - Absolute Alignment</title>
+    <title>Tyler TX - Exact Alignment v11</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --bg: #050505; --pd: #2563eb; --fire: #dc2626; --eng: #fbbf24; }
+        :root { --bg: #050505; --panel: #0d0d0f; --pd: #2563eb; --fire: #dc2626; --eng: #fbbf24; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: #fff; overflow: hidden; }
-        #app { display: flex; flex-direction: column; height: 100vh; }
+        #layout { display: flex; flex-direction: column; height: 100vh; }
         header { height: 50px; background: #000; border-bottom: 1px solid #222; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; z-index: 1000; }
-        .f-group { display: flex; gap: 8px; }
-        .btn { background: #111; border: 1px solid #333; color: #555; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: 800; }
-        .btn.active { color: #fff; border-color: #555; }
-        .btn.active.pd { border-bottom: 2px solid var(--pd); }
-        .btn.active.fire { border-bottom: 2px solid var(--fire); }
-        .btn.active.eng { border-bottom: 2px solid var(--eng); }
-        #main { display: flex; flex: 1; }
+        .f-btn { background: #1a1a1f; border: 1px solid #333; color: #555; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: 800; }
+        .f-btn.active { color: #fff; border-color: #555; }
+        .f-btn.active.pd { border-bottom: 2px solid var(--pd); }
+        .f-btn.active.fire { border-bottom: 2px solid var(--fire); }
+        .f-btn.active.eng { border-bottom: 2px solid var(--eng); }
+        #viewer { display: flex; flex: 1; }
         #map { flex: 1; background: #000; }
-        #sidebar { width: 340px; background: #0a0a0c; border-left: 1px solid #222; display: flex; flex-direction: column; }
-        .side-h { padding: 12px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; font-size: 0.7rem; font-weight: 900; }
+        #side { width: 340px; background: var(--panel); border-left: 1px solid #222; display: flex; flex-direction: column; }
+        .side-h { padding: 12px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; font-size: 0.7rem; font-weight: 900; color: #444; }
         #feed { flex: 1; overflow-y: auto; padding: 10px; }
-        .card { background: #121215; padding: 12px; border-radius: 4px; margin-bottom: 8px; border-left: 4px solid #333; cursor: pointer; }
+        .card { background: #151518; padding: 12px; border-radius: 4px; margin-bottom: 8px; border-left: 4px solid #333; cursor: pointer; }
         .card.PD { border-left-color: var(--pd); }
         .card.FIRE { border-left-color: var(--fire); }
         .card.ENG { border-left-color: var(--eng); }
@@ -32,20 +31,20 @@
 </head>
 <body>
 
-<div id="app">
+<div id="layout">
     <header>
-        <div style="font-weight:900; font-size:0.8rem; color:#eee;">TYLER_CENTERLINE_SNAP</div>
-        <div class="f-group">
-            <button class="btn active" onclick="setF('ALL')">ALL UNITS</button>
-            <button class="btn" id="btn-PD" onclick="setF('PD')">PD</button>
-            <button class="btn" id="btn-FIRE" onclick="setF('FIRE')">FIRE</button>
-            <button class="btn" id="btn-ENG" onclick="setF('ENG')">ENG</button>
+        <div style="font-weight:900; font-size:0.8rem; letter-spacing:1px;">TYLER_CENTERLINE_V11</div>
+        <div style="display:flex; gap:8px;">
+            <button class="f-btn active" onclick="setF('ALL')">ALL UNITS</button>
+            <button class="f-btn" id="btn-PD" onclick="setF('PD')">PD</button>
+            <button class="f-btn" id="btn-FIRE" onclick="setF('FIRE')">FIRE</button>
+            <button class="f-btn" id="btn-ENG" onclick="setF('ENG')">ENG</button>
         </div>
     </header>
-    <div id="main">
+    <div id="viewer">
         <div id="map"></div>
-        <div id="sidebar">
-            <div class="side-h"><span style="color:#555">LIVE COORDINATE LOG</span><span id="timer" style="color:var(--pd)">01:30</span></div>
+        <div id="side">
+            <div class="side-h"><span>COORD_FEED_SYNC</span><span id="timer" style="color:var(--pd)">01:30</span></div>
             <div id="feed"></div>
         </div>
     </div>
@@ -53,101 +52,116 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const CYCLE_TIME = 90000;
-    let map, roadLayers = [], reportLayers = [], currentFilter = 'ALL', timeLeft = 90;
+    const CYCLE = 90000;
+    let map, roadObjs = [], reportObjs = [], filter = 'ALL', time = 90;
 
-    // CENTER-LINE ALIGNED COORDINATES
-    // Manual traces of Tyler TX roadbed center-lines
-    const PRECISION_NETWORK = [
-        { name: "Broadway (Hwy 69)", path: [[32.4024, -95.3011], [32.3820, -95.3011], [32.3650, -95.3011], [32.3513, -95.3011], [32.3385, -95.3013], [32.3245, -95.3013], [32.3082, -95.3013], [32.2880, -95.3013], [32.2685, -95.3014]] },
-        { name: "Loop 323 (SW Arc)", path: [[32.3080, -95.3013], [32.3080, -95.3120], [32.3085, -95.3230], [32.3110, -95.3340], [32.3160, -95.3400], [32.3315, -95.3415], [32.3513, -95.3415]] },
-        { name: "Loop 323 (NW Arc)", path: [[32.3513, -95.3415], [32.3750, -95.3415], [32.3900, -95.3395], [32.4024, -95.3325], [32.4024, -95.3150], [32.4024, -95.3011]] },
-        { name: "Loop 323 (NE Arc)", path: [[32.4024, -95.3011], [32.4024, -95.2850], [32.3980, -95.2710], [32.3850, -95.2635], [32.3700, -95.2615], [32.3513, -95.2615]] },
-        { name: "Loop 323 (SE Arc)", path: [[32.3513, -95.2615], [32.3350, -95.2615], [32.3220, -95.2615], [32.3130, -95.2660], [32.3080, -95.2800], [32.3080, -95.3013]] },
-        { name: "Troup Hwy (110)", path: [[32.3513, -95.3011], [32.3445, -95.2955], [32.3330, -95.2830], [32.3210, -95.2710], [32.3080, -95.2655]] },
-        { name: "Front St (Hwy 31)", path: [[32.3513, -95.3800], [32.3513, -95.3415], [32.3513, -95.3011], [32.3513, -95.2615], [32.3513, -95.2200]] },
-        { name: "Old Jacksonville", path: [[32.3330, -95.3085], [32.3250, -95.3165], [32.3150, -95.3245], [32.3020, -95.3360], [32.2850, -95.3490], [32.2600, -95.3650]] }
+    // MANUALLY CALIBRATED CENTER-LINE NODES (Tyler, TX Map Grid)
+    const GRID = [
+        { 
+            name: "Broadway (S-Centerline)", 
+            path: [[32.3082, -95.3013], [32.2980, -95.3013], [32.2880, -95.3013], [32.2780, -95.3013], [32.2680, -95.3013]] 
+        },
+        { 
+            name: "Broadway (N-Centerline)", 
+            path: [[32.3082, -95.3013], [32.3210, -95.3013], [32.3385, -95.3013], [32.3513, -95.3011], [32.3650, -95.3011], [32.3820, -95.3011]] 
+        },
+        { 
+            name: "Loop 323 (SW Corner)", 
+            path: [[32.3082, -95.3013], [32.3082, -95.3120], [32.3085, -95.3230], [32.3115, -95.3345], [32.3165, -95.3405], [32.3315, -95.3415], [32.3513, -95.3415]] 
+        },
+        { 
+            name: "Loop 323 (SE Corner)", 
+            path: [[32.3082, -95.3013], [32.3082, -95.2850], [32.3110, -95.2750], [32.3150, -95.2645], [32.3250, -95.2615], [32.3513, -95.2615]] 
+        },
+        { 
+            name: "Troup Hwy (110 Slope)", 
+            path: [[32.3513, -95.3011], [32.3440, -95.2950], [32.3330, -95.2830], [32.3210, -95.2710], [32.3085, -95.2655]] 
+        },
+        {
+            name: "Front St (Centerline)",
+            path: [[32.3513, -95.3800], [32.3513, -95.3415], [32.3513, -95.3011], [32.3513, -95.2615], [32.3513, -95.2200]]
+        },
+        {
+            name: "Old Jacksonville Hwy",
+            path: [[32.3330, -95.3085], [32.3250, -95.3165], [32.3150, -95.3245], [32.3020, -95.3360], [32.2850, -95.3490]]
+        }
     ];
 
-    const CONFIG = [
-        { label: "Structure Fire", icon: "🔥", dept: "FIRE", color: "#dc2626" },
-        { label: "Patrol Pursuit", icon: "🚔", dept: "PD", color: "#2563eb" },
+    const TYPES = [
+        { label: "Dispatch Call", icon: "🚔", dept: "PD", color: "#2563eb" },
+        { label: "Fire / Rescue", icon: "🔥", dept: "FIRE", color: "#dc2626" },
         { label: "Signal Maintenance", icon: "🚦", dept: "ENG", color: "#fbbf24" },
-        { label: "Accident Relief", icon: "🚑", dept: "FIRE", color: "#dc2626" },
-        { label: "Stalled Vehicle", icon: "⚠️", dept: "PD", color: "#2563eb" },
-        { label: "Work Zone Set", icon: "🚧", dept: "ENG", color: "#fbbf24" }
+        { label: "Road Obstruction", icon: "🚧", dept: "ENG", color: "#fbbf24" }
     ];
 
     function init() {
-        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([32.335, -95.301], 13);
+        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([32.325, -95.301], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-        PRECISION_NETWORK.forEach(r => {
-            const l = L.polyline(r.path, { color: '#059669', weight: 8, opacity: 0.8, lineCap: 'round' }).addTo(map);
-            roadLayers.push({ ...r, layer: l });
+        GRID.forEach(r => {
+            const l = L.polyline(r.path, { color: '#059669', weight: 8, opacity: 0.8 }).addTo(map);
+            roadObjs.push({ ...r, layer: l });
         });
 
         startSim();
-        setInterval(startSim, CYCLE_TIME);
+        setInterval(startSim, CYCLE);
         setInterval(() => {
-            timeLeft--; if(timeLeft < 0) timeLeft = 0;
-            const m = Math.floor(timeLeft/60), s = timeLeft%60;
+            time--; if(time < 0) time = 0;
+            const m = Math.floor(time/60), s = time%60;
             document.getElementById('timer').innerText = `${m}:${s < 10 ? '0'+s : s}`;
         }, 1000);
     }
 
     function startSim() {
-        timeLeft = 90;
-        roadLayers.forEach(r => {
-            const val = Math.random();
-            const col = val > 0.88 ? '#dc2626' : (val > 0.65 ? '#f59e0b' : '#059669');
+        time = 90;
+        roadObjs.forEach(r => {
+            const roll = Math.random();
+            const col = roll > 0.88 ? '#dc2626' : (roll > 0.65 ? '#f59e0b' : '#059669');
             r.layer.setStyle({ color: col });
         });
 
-        reportLayers.forEach(rl => map.removeLayer(rl.marker));
-        reportLayers = [];
+        reportObjs.forEach(o => map.removeLayer(o.marker));
+        reportObjs = [];
         document.getElementById('feed').innerHTML = '';
-        for(let i=0; i<5; i++) createReport();
+        for(let i=0; i<4; i++) spawn();
     }
 
-    function createReport() {
-        const road = PRECISION_NETWORK[Math.floor(Math.random() * PRECISION_NETWORK.length)];
-        const cfg = CONFIG[Math.floor(Math.random() * CONFIG.length)];
-        // Accurate Snapping: Incident is placed EXACTLY on a road vertex
+    function spawn() {
+        const road = GRID[Math.floor(Math.random() * GRID.length)];
+        const t = TYPES[Math.floor(Math.random() * TYPES.length)];
         const coord = road.path[Math.floor(Math.random() * road.path.length)];
         
         const marker = L.marker(coord, {
             icon: L.divIcon({
                 className: '',
-                html: `<div class="pin" style="background:${cfg.color}"><span>${cfg.icon}</span></div>`,
+                html: `<div class="pin" style="background:${t.color}"><span>${t.icon}</span></div>`,
                 iconSize: [24, 24]
             })
         });
 
         const card = document.createElement('div');
-        card.className = `card ${cfg.dept}`;
+        card.className = `card ${t.dept}`;
         card.onclick = () => map.flyTo(coord, 16);
         card.innerHTML = `<div style="display:flex; justify-content:space-between; font-size:0.6rem; color:#555; margin-bottom:4px;">
-            <b>${cfg.dept}</b> <span>${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>
-            <div style="font-weight:700; font-size:0.8rem;">${cfg.icon} ${cfg.label}</div>
-            <div style="font-size:0.7rem; color:#888;">${road.name}</div>
-            <div style="font-size:0.6rem; color:#333; font-family:monospace; margin-top:4px;">${coord[0]}, ${coord[1]}</div>`;
+            <b>${t.dept}</b> <span>${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>
+            <div style="font-weight:700; font-size:0.8rem;">${t.icon} ${t.label}</div>
+            <div style="font-size:0.7rem; color:#888;">${road.name}</div>`;
 
-        const obj = { marker, dept: cfg.dept, element: card };
-        reportLayers.push(obj);
+        const obj = { marker, dept: t.dept, element: card };
+        reportObjs.push(obj);
         document.getElementById('feed').prepend(card);
         sync(obj);
     }
 
     function setF(f) {
-        currentFilter = f;
-        document.querySelectorAll('.btn').forEach(b => b.classList.toggle('active', b.innerText.includes(f) || (f === 'ALL' && b.innerText === 'ALL UNITS')));
-        reportLayers.forEach(sync);
+        filter = f;
+        document.querySelectorAll('.f-btn').forEach(b => b.classList.toggle('active', b.innerText.includes(f) || (f === 'ALL' && b.innerText === 'ALL UNITS')));
+        reportObjs.forEach(sync);
     }
 
     function sync(obj) {
-        const show = currentFilter === 'ALL' || obj.dept === currentFilter;
-        if(show) { obj.marker.addTo(map); obj.element.classList.remove('hidden'); }
+        const visible = filter === 'ALL' || obj.dept === filter;
+        if(visible) { obj.marker.addTo(map); obj.element.classList.remove('hidden'); }
         else { map.removeLayer(obj.marker); obj.element.classList.add('hidden'); }
     }
 
