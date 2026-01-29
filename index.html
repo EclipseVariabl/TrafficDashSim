@@ -2,215 +2,168 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Tyler, TX – Traffic Operations Simulator</title>
+<title>City of Tyler – Integrated Traffic Operations Center</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet"/>
-<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-html,body{margin:0;height:100%;font-family:Inter,system-ui;}
-#app{display:flex;flex-direction:column;height:100%}
-header{background:#1f2d3d;color:white;padding:10px 16px}
-main{flex:1;display:flex;min-height:0}
-#map{flex:2}
-#side{flex:1;overflow:auto;background:#f5f7fa;padding:10px}
-.card{background:white;border-radius:8px;padding:10px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
-.incident{padding:6px;border-left:6px solid;margin-bottom:6px;background:#fafafa}
-.alert{font-weight:600}
+:root{
+--bg:#0b1220;--panel:#121a2f;--accent:#00c2ff;
+--danger:#ff4d4d;--warning:#ffb703;--success:#2ec4b6;
+--text:#e6e9ef;--muted:#9aa4bf;
+}
+*{box-sizing:border-box;font-family:Segoe UI,Roboto,sans-serif}
+body{margin:0;background:var(--bg);color:var(--text)}
+header{padding:14px 22px;background:linear-gradient(90deg,#0b1220,#121a2f);
+display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f2a48}
+header h1{margin:0;font-size:20px}
+header span{color:var(--accent)}
 
-.alert-marker{
-  width:20px;height:20px;border-radius:50%;
-  border:3px solid white;
-  animation:pulse 1.4s infinite;
-}
-@keyframes pulse{
-  0%{transform:scale(.9);opacity:.6}
-  50%{transform:scale(1.3);opacity:1}
-  100%{transform:scale(.9);opacity:.6}
-}
+.dashboard{display:grid;grid-template-columns:330px 1fr 380px;height:calc(100vh - 64px)}
+.panel{background:var(--panel);border-right:1px solid #1f2a48;padding:14px;overflow:auto}
+.panel h2{font-size:15px;color:var(--accent);margin:10px 0}
+
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.kpi{background:#0e1730;padding:10px;border-radius:6px}
+.kpi h3{margin:0;font-size:12px;color:var(--muted)}
+.kpi p{margin:4px 0 0;font-size:18px}
+
+.toggle label{display:block;font-size:13px;margin-bottom:4px}
+.toggle input{margin-right:6px}
+
+.list-item{background:#0e1730;padding:10px;margin-bottom:8px;
+border-left:4px solid var(--accent);border-radius:6px;font-size:13px}
+.danger{border-color:var(--danger)}
+.warning{border-color:var(--warning)}
+
+#map{height:100%;width:100%}
+
+.insight{background:#0e1730;padding:10px;border-radius:6px;
+margin-bottom:8px;border-left:4px solid var(--success)}
+
+canvas{background:#0e1730;border-radius:6px;padding:8px}
+
+footer{position:fixed;bottom:0;left:0;right:0;background:#0e1730;
+padding:6px 14px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
 </style>
 </head>
+
 <body>
-<div id="app">
+
 <header>
-  <strong>Tyler, TX – Traffic / Engineering / Public Safety Simulator</strong>
-  <div id="status">Initializing…</div>
+<h1>City of Tyler <span>Integrated Traffic Operations Center</span></h1>
+<div>
+Time Mode:
+<select id="timeMode">
+<option>Night</option>
+<option>AM Peak</option>
+<option>Midday</option>
+<option>PM Peak</option>
+</select>
+</div>
 </header>
 
-<main>
-  <div id="map"></div>
-  <div id="side">
-    <div class="card">
-      <h3>Active Reports</h3>
-      <div id="list"></div>
-    </div>
-    <div class="card">
-      <h3>Average Traffic Speed (mph)</h3>
-      <canvas id="chart"></canvas>
-    </div>
-  </div>
-</main>
+<div class="dashboard">
+
+<!-- LEFT -->
+<div class="panel">
+<h2>Citywide KPIs</h2>
+<div class="kpis">
+<div class="kpi"><h3>Avg Speed</h3><p id="speed">32 mph</p></div>
+<div class="kpi"><h3>Delay Index</h3><p id="delay">1.31</p></div>
+<div class="kpi"><h3>Active Alerts</h3><p style="color:var(--danger)">14</p></div>
+<div class="kpi"><h3>Signal Health</h3><p style="color:var(--success)">88%</p></div>
 </div>
 
+<h2>Layer Controls</h2>
+<div class="toggle">
+<label><input type="checkbox" checked> Waze Traffic</label>
+<label><input type="checkbox" checked> PD</label>
+<label><input type="checkbox" checked> Fire</label>
+<label><input type="checkbox" checked> Traffic</label>
+<label><input type="checkbox" checked> Streets</label>
+<label><input type="checkbox" checked> Engineering</label>
+<label><input type="checkbox" checked> Weather (NWS)</label>
+<label><input type="checkbox" checked> TxDOT</label>
+</div>
+
+<h2>Active Alerts</h2>
+<div class="list-item danger"><strong>Crash – Broadway Ave</strong> PD & Fire responding</div>
+<div class="list-item warning"><strong>Heavy Rain</strong> Reduced visibility</div>
+<div class="list-item"><strong>Lane Closure – Loop 323</strong> TxDOT</div>
+</div>
+
+<!-- MAP -->
+<div id="map"></div>
+
+<!-- RIGHT -->
+<div class="panel">
+<h2>Operational Trends</h2>
+<canvas id="speedChart"></canvas>
+<canvas id="delayChart" style="margin-top:10px"></canvas>
+
+<h2>Department Insights</h2>
+<div class="insight"><strong>PD:</strong> Crash density elevated near UT Tyler</div>
+<div class="insight"><strong>Fire:</strong> Signal preemption effective on Broadway</div>
+<div class="insight"><strong>Traffic:</strong> PM timing plan active</div>
+<div class="insight"><strong>Streets:</strong> Rain increasing pothole reports</div>
+<div class="insight"><strong>Engineering:</strong> Corridor reliability trending down</div>
+
+<h2>AI City Advisor</h2>
+<div class="insight" style="border-color:var(--accent)">
+PM peak + rain detected. Recommend public advisory, extend green splits on arterials, and coordinate PD presence at crash-prone intersections.
+</div>
+</div>
+
+</div>
+
+<footer>
+<div>Simulated Feeds: Waze • NWS/NOAA • TxDOT • City of Tyler</div>
+<div id="clock"></div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-/* ---------------- MAP ---------------- */
-const map = new maplibregl.Map({
-  container:'map',
-  center:[-95.3011,32.3513],
-  zoom:12,
-  style:{
-    version:8,
-    sources:{
-      base:{
-        type:'raster',
-        tiles:[
-          "https://cartodb-basemaps-a.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}.png"
-        ],
-        tileSize:256
-      }
-    },
-    layers:[{id:'base',type:'raster',source:'base'}]
-  }
-});
-map.addControl(new maplibregl.NavigationControl());
+const map=L.map('map').setView([32.3513,-95.3011],12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
-/* ---------------- DATA ---------------- */
-const locations=[
-  ["Broadway & Bois D'Arc",-95.3011,32.3513],
-  ["Loop 323 & Troup Hwy",-95.260,32.341],
-  ["Old Jacksonville & Garden Valley",-95.282,32.3145],
-  ["Caldwell & Front",-95.290,32.345],
-  ["MLK & Gentry",-95.320,32.308],
-  ["Grande & Cumberland",-95.290,32.366],
-  ["Rusk & College",-95.310,32.352],
-  ["E 5th & Timber",-95.270,32.364]
+/* Waze-style jam lines */
+const jams=[
+[[32.34,-95.29],[32.36,-95.31]],
+[[32.33,-95.30],[32.35,-95.32]]
 ];
-
-const types=[
- {t:"Accident – Major",c:"#c0392b",impact:0.8,critical:true},
- {t:"Accident – Minor",c:"#e74c3c",impact:0.5,critical:true},
- {t:"Road Closure – Emergency",c:"#8e0000",impact:0.9,critical:true},
- {t:"Road Closure – Construction",c:"#d35400",impact:0.6,critical:true},
- {t:"Hazard – Debris",c:"#16a085",impact:0.3,critical:true},
- {t:"Hazard – Fallen Tree",c:"#1abc9c",impact:0.4,critical:true},
- {t:"Police – Speed Trap",c:"#8e44ad",impact:0.2,critical:true},
- {t:"Police – Traffic Stop",c:"#9b59b6",impact:0.3,critical:true},
- {t:"Weather – Heavy Rain",c:"#3498db",impact:0.4},
- {t:"Weather – Fog",c:"#5dade2",impact:0.3},
- {t:"Disabled Vehicle",c:"#f1c40f",impact:0.3},
- {t:"Heavy Traffic",c:"#f39c12",impact:0.5}
-];
-
-let incidents=[];
-let markers=[];
-
-/* ---------------- HEATMAP ---------------- */
-map.on('load',()=>{
-  map.addSource('heat',{
-    type:'geojson',
-    data:{type:'FeatureCollection',features:[]}
-  });
-  map.addLayer({
-    id:'heat-layer',
-    type:'heatmap',
-    source:'heat',
-    paint:{
-      'heatmap-radius':20,
-      'heatmap-intensity':1,
-      'heatmap-opacity':0.6
-    }
-  });
+jams.forEach(j=>{
+L.polyline(j,{color:'#ff4d4d',weight:6,opacity:.8}).addTo(map);
 });
 
-/* ---------------- SIMULATION ---------------- */
-function generate(){
-  const now=Date.now();
-  incidents=incidents.filter(i=>now-i.time<600000);
+/* Weather zones */
+L.circle([32.37,-95.28],{radius:1500,color:'#00c2ff',fillOpacity:.2}).addTo(map)
+.bindPopup("Heavy Rain – NWS");
 
-  while(incidents.length<Math.floor(Math.random()*18)+2){
-    const l=locations[Math.floor(Math.random()*locations.length)];
-    const t=types[Math.floor(Math.random()*types.length)];
-    incidents.push({
-      id:Math.random(),
-      type:t,
-      name:l[0],
-      coords:[l[1],l[2]],
-      time:now
-    });
-  }
-}
+/* Incidents */
+L.marker([32.351,-95.301]).addTo(map).bindPopup("Major Crash – PD / Fire");
+L.marker([32.36,-95.32]).addTo(map).bindPopup("TxDOT Lane Closure");
 
-function draw(){
-  markers.forEach(m=>m.remove());
-  markers=[];
-
-  incidents.forEach(i=>{
-    const el=document.createElement('div');
-    el.style.background=i.type.c;
-    el.style.width=i.type.critical?'20px':'14px';
-    el.style.height=i.type.critical?'20px':'14px';
-    el.style.borderRadius='50%';
-    el.style.border='2px solid white';
-    if(i.type.critical)el.className='alert-marker';
-
-    markers.push(
-      new maplibregl.Marker(el)
-        .setLngLat(i.coords)
-        .setPopup(new maplibregl.Popup({offset:25})
-        .setHTML(`<strong>${i.type.t}</strong><br>${i.name}`))
-        .addTo(map)
-    );
-  });
-
-  map.getSource('heat').setData({
-    type:'FeatureCollection',
-    features:incidents.map(i=>({
-      type:'Feature',
-      geometry:{type:'Point',coordinates:i.coords}
-    }))
-  });
-
-  document.getElementById('list').innerHTML=
-    incidents
-      .sort((a,b)=>b.time-a.time)
-      .map(i=>`<div class="incident ${i.type.critical?'alert':''}" style="border-color:${i.type.c}">
-        ${i.type.t}<br><small>${i.name}</small>
-      </div>`).join('');
-}
-
-/* ---------------- CHART ---------------- */
-const chart=new Chart(document.getElementById('chart'),{
-  type:'line',
-  data:{labels:[],datasets:[{data:[],borderColor:'#3498db',fill:true}]},
-  options:{plugins:{legend:{display:false}},scales:{y:{min:5,max:60}}}
+/* Charts */
+new Chart(document.getElementById("speedChart"),{
+type:"line",
+data:{labels:["-60","-45","-30","-15","Now"],
+datasets:[{label:"Avg Speed (mph)",data:[38,36,34,33,32],borderColor:"#2ec4b6"}]},
+options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false}}}
 });
 
-function updateChart(){
-  let speed=50;
-  incidents.forEach(i=>speed-=i.type.impact*5);
-  speed=Math.max(10,speed-Math.random()*4);
-  chart.data.labels.push(new Date().toLocaleTimeString());
-  chart.data.datasets[0].data.push(speed);
-  if(chart.data.labels.length>10){
-    chart.data.labels.shift();
-    chart.data.datasets[0].data.shift();
-  }
-  chart.update();
-}
+new Chart(document.getElementById("delayChart"),{
+type:"line",
+data:{labels:["-60","-45","-30","-15","Now"],
+datasets:[{label:"Delay Index",data:[1.1,1.2,1.25,1.29,1.31],borderColor:"#ffb703"}]},
+options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false}}}
+});
 
-/* ---------------- LOOP ---------------- */
-function tick(){
-  generate();
-  draw();
-  updateChart();
-  document.getElementById('status').textContent=
-    `Active reports: ${incidents.length} | Updated ${new Date().toLocaleTimeString()}`;
-}
-
-tick();
-setInterval(tick,60000);
+/* Clock */
+setInterval(()=>document.getElementById("clock").innerText=new Date().toLocaleString(),1000);
 </script>
+
 </body>
 </html>
