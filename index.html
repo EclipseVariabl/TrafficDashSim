@@ -1258,74 +1258,7 @@
         if (state.history.length > 100) state.history.shift();
       });
     }
-<!-- Insert after corridors are defined and after `map` exists -->
-<script>
-  // Draw corridors on the map and attach a reference on each corridor object
-  function buildCorridorPolylines(map) {
-    corridors.forEach(corr => {
-      // subtle style so they are visible but not overpowering
-      corr.poly = L.polyline(corr.baseGeometry, {
-        color: '#888',
-        weight: 5,
-        opacity: 0.35,
-        pane: 'overlayPane'
-      }).addTo(map);
-    });
-  }
 
-  // Simple helper: return a random point along a corridor polyline
-  // (linear interpolation between two consecutive coordinates)
-  function randomPointOnCorridor(corridor) {
-    const pts = corridor.baseGeometry;
-    if (!pts || pts.length === 0) return BASE_CENTER;
-
-    // choose a random segment
-    const segIndex = Math.floor(Math.random() * (pts.length - 1));
-    const a = pts[segIndex];
-    const b = pts[segIndex + 1];
-
-    // choose random t between 0..1
-    const t = Math.random();
-    const lat = a[0] + (b[0] - a[0]) * t;
-    const lng = a[1] + (b[1] - a[1]) * t;
-    return [lat, lng];
-  }
-
-  // Deterministic helper: midpoint of corridor (useful for labels)
-  function midpointOfCorridor(corridor) {
-    const pts = corridor.baseGeometry;
-    if (!pts || pts.length === 0) return BASE_CENTER;
-    const midIndex = Math.floor(pts.length / 2);
-    return pts[midIndex];
-  }
-
-  // Find corridor by (partial) name (case-insensitive)
-  function findCorridorByName(name) {
-    if (!name) return null;
-    const n = name.toLowerCase();
-    return corridors.find(c => c.name.toLowerCase().includes(n)) || null;
-  }
-
-  // Example: create an alert anchored to a named corridor
-  function createCorridorAlert(map, alertText, corridorName, options = {}) {
-    const corridor = findCorridorByName(corridorName);
-    const latlng = corridor ? randomPointOnCorridor(corridor) : BASE_CENTER;
-
-    const marker = L.circleMarker(latlng, {
-      radius: options.radius || 7,
-      color: options.color || '#f97316',
-      fillColor: options.fillColor || (options.color || '#f97316'),
-      fillOpacity: 0.9,
-      weight: 1
-    }).addTo(map);
-
-    marker.bindPopup(`<strong>${alertText}</strong><br/><em>${corridor ? corridor.name : 'Unknown corridor'}</em>`);
-    return { marker, corridor, latlng };
-  }
-
-  // Example use (call after map and corridors are set up)
-  // buildCorridorPolylines(map);
-  // createCorridorAlert(map, 'Crash reported', 'Broadway Ave', { color: '#ef4444' });
     /************************************************************
      * Alerts & reports
      ************************************************************/
