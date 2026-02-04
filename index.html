@@ -208,6 +208,16 @@
       border: 1px solid var(--border);
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7);
       background: #020617;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #radar-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      border-radius: 18px;
     }
 
     /* Right panel */
@@ -596,7 +606,9 @@
 
   <div id="main">
     <div id="map-container">
-      <div id="map"></div>
+      <div id="map">
+        <canvas id="radar-canvas"></canvas>
+      </div>
     </div>
     <div id="right-panel">
       <div class="panel">
@@ -726,8 +738,8 @@
     };
 
     /************************************************************
-     * CORRIDORS + POIs (coords should be real OSM nodes in practice)
-     * These are approximate; swap with exact intersection coords.
+     * CORRIDORS + POIs
+     * (coords should be real OSM nodes in production)
      ************************************************************/
     const corridors = [
       {
@@ -929,233 +941,162 @@
     let corridorChart = null;
     let selectedCorridorName = null;
 
+    // Radar canvas
+    let radarCanvas, radarCtx;
+    let radarTime = 0;
+
     /************************************************************
-     * RADAR WEATHER ENGINE
+     * RADAR ENGINE (NEXRAD-STYLE, HYBRID ANCHORED)
      ************************************************************/
-    const RADAR_GRID_ROWS = 20;
-    const RADAR_GRID_COLS = 20;
-    const WEATHER_TYPES = ["Rain", "Thunderstorm", "Fog", "Ice", "Wind"];
-    let radarCells = [];
+    const RadarEngine = {
+      init() {
+        radarCanvas = document.getElementById("radar-canvas");
+        radarCtx = radarCanvas.getContext("2d");
+        this.resize();
+      },
 
-    function randomWeatherType() {
-      const r = Math.random();
-      if (r < 0.5) return "Rain";
-      if (r < 0.7) return "Thunderstorm";
-      if (r < 0.85) return "Fog";
-      if (r < 0.95) return "Wind";
-      return "Ice";
-    }
+      resize() {
+        if (!radarCanvas) return;
+        const mapEl = document.getElementById("map");
+        const rect = mapEl.getBoundingClientRect();
+        radarCanvas.width = rect.width;
+        radarCanvas.height = rect.height;
+      },
 
-    const WeatherEngine = {
-      generateCells() {
-        radarCells = [];
-        if (!weatherEnabled) return;
+      // Simple pseudo-noise based on sin/cos; not true Perlin but good enough visually
+      noise(x, y, t) {
+        const v =
+          Math.sin(x * 0.15 + t * 0.3) +
+          Math.cos(y * 0.18 - t * 0.25) +
+          Math.sin((x + y) * 0.07 + t * 0.4) * 0.7;
+        return (v + 3) / 6; // normalize ~0..1
+      },
 
-        const latSpan = 0.18;
-        const lngSpan = 0.18;
-        const latStart = BASE_CENTER[0] - latSpan / 2;
-        const lngStart = BASE_CENTER[1] - lngSpan / 2;
+      reflectivityAtLatLng(lat, lng) {
+        if (!map) return 0;
+        const pt = map.latLngToContainerPoint([lat, lng]);
+        const x = pt.x / 40;
+        const y = pt.y / 40;
+        const n = this.noise(x, y, radarTime);
+        // Map noise to dBZ-ish range
+        const dbz = n * 60 - 5; // -5 to ~55
+        return dbz;
+      },
 
-        for (let r = 0; r < RADAR_GRID_ROWS; r++) {
-          for (let c = 0; c < RADAR_GRID_COLS; c++) {
-            const lat = latStart + (r + 0.5) * (latSpan / RADAR_GRID_ROWS);
-            const lng = lngStart + (c + 0.5) * (lngSpan / RADAR_GRID_COLS);
-            const type = randomWeatherType();
-            const intensity = Math.random();
+      classifyFromDbz(dbz) {
+        if (dbz < 0) return { type: "Clear", level: 0 };
+        if (dbz < 10) return { type: "Light Rain", level: 1 };
+        if (dbz < 25) return { type: "Moderate Rain", level: 2 };
+        if (dbz < 35) return { type: "Heavy Rain", level: 3 };
+        if (dbz < 45) return { type: "Thunderstorm", level: 4 };
+        if (dbz < 55) return { type: "Severe Thunderstorm", level: 5 };
+        return { type: "Extreme Storm", level: 6 };
+      },
 
-            radarCells.push({
-              center: [lat, lng],
-              intensity,
-              type,
-              dx: (Math.random() - 0.5) * 0.002,
-              dy: (Math.random() - 0.5) * 0.002
-            });
+      colorForDbz(dbz) {
+        // Classic-ish NEXRAD palette
+        if (dbz < 0) return null;
+        if (dbz < 10) return "rgba(173,216,230,0.35)"; // light blue
+        if (dbz < 20) return "rgba(100,149,237,0.4)";  // cornflower
+        if (dbz < 30) return "rgba(65,105,225,0.45)";  // royal blue
+        if (dbz < 40) return "rgba(0,128,0,0.5)";      // green
+        if (dbz < 50) return "rgba(255,215,0,0.55)";   // gold
+        if (dbz < 60) return "rgba(255,140,0,0.6)";    // dark orange
+        return "rgba(220,20,60,0.65)";                 // crimson
+      },
+
+      render() {
+        if (!weatherEnabled || !radarCtx || !map) {
+          if (radarCtx) {
+            radarCtx.clearRect(0, 0, radarCanvas.width, radarCanvas.height);
+          }
+          return;
+        }
+
+        const w = radarCanvas.width;
+        const h = radarCanvas.height;
+        radarCtx.clearRect(0, 0, w, h);
+
+        // Hybrid: resolution scales with zoom
+        const zoom = map.getZoom();
+        const step = zoom >= 14 ? 6 : zoom >= 12 ? 10 : 16;
+
+        for (let y = 0; y < h; y += step) {
+          for (let x = 0; x < w; x += step) {
+            const latlng = map.containerPointToLatLng([x, y]);
+            const dbz = this.reflectivityAtLatLng(latlng.lat, latlng.lng);
+            const color = this.colorForDbz(dbz);
+            if (!color) continue;
+            radarCtx.fillStyle = color;
+            radarCtx.fillRect(x, y, step + 1, step + 1);
           }
         }
       },
 
-      updateCells() {
-        if (!weatherEnabled) return;
-        radarCells.forEach((cell) => {
-          cell.center[0] += cell.dy;
-          cell.center[1] += cell.dx;
-          cell.intensity += (Math.random() - 0.5) * 0.05;
-          cell.intensity = Math.max(0, Math.min(cell.intensity, 1));
-        });
+      updateTime(dt) {
+        radarTime += dt;
       },
 
-      colorForCell(cell) {
-        const i = cell.intensity;
-        switch (cell.type) {
-          case "Rain":
-            return { fill: `rgba(56,189,248,${0.2 + 0.4 * i})`, border: "rgba(56,189,248,0.7)", opacity: 0.3 + 0.4 * i };
-          case "Thunderstorm":
-            return { fill: `rgba(59,130,246,${0.3 + 0.5 * i})`, border: "rgba(59,130,246,0.9)", opacity: 0.4 + 0.4 * i };
-          case "Fog":
-            return { fill: `rgba(148,163,184,${0.2 + 0.4 * i})`, border: "rgba(148,163,184,0.7)", opacity: 0.3 + 0.4 * i };
-          case "Ice":
-            return { fill: `rgba(96,165,250,${0.3 + 0.5 * i})`, border: "rgba(96,165,250,0.9)", opacity: 0.4 + 0.4 * i };
-          case "Wind":
-            return { fill: `rgba(34,197,94,${0.2 + 0.4 * i})`, border: "rgba(34,197,94,0.8)", opacity: 0.3 + 0.4 * i };
-          default:
-            return { fill: "rgba(56,189,248,0.3)", border: "rgba(56,189,248,0.8)", opacity: 0.4 };
-        }
-      },
-
-      infoForCell(cell) {
-        const i = cell.intensity;
-        if (cell.type === "Rain") {
-          return {
-            label: "Rain Cell",
-            intensityLabel: i < 0.4 ? "Light" : i < 0.7 ? "Moderate" : "Heavy",
-            visibility: i < 0.4 ? "1.5–2.0 mi" : i < 0.7 ? "0.8–1.2 mi" : "0.4–0.8 mi",
-            speedImpact: i < 0.4 ? "-10–15%" : i < 0.7 ? "-15–25%" : "-25–35%",
-            incidentRisk: i < 0.4 ? "+15%" : i < 0.7 ? "+30%" : "+45%"
-          };
-        }
-        if (cell.type === "Thunderstorm") {
-          return {
-            label: "Thunderstorm Cell",
-            intensityLabel: i < 0.5 ? "Strong" : "Severe",
-            visibility: "0.3–0.8 mi",
-            speedImpact: "-25–40%",
-            incidentRisk: "+40–60%"
-          };
-        }
-        if (cell.type === "Fog") {
-          return {
-            label: "Fog Bank",
-            intensityLabel: i < 0.5 ? "Patchy" : "Dense",
-            visibility: i < 0.5 ? "0.5–1.0 mi" : "0.1–0.4 mi",
-            speedImpact: "-15–30%",
-            incidentRisk: "+25–45%"
-          };
-        }
-        if (cell.type === "Ice") {
-          return {
-            label: "Icy Conditions",
-            intensityLabel: i < 0.5 ? "Spotty" : "Widespread",
-            visibility: "Normal",
-            speedImpact: "-30–60%",
-            incidentRisk: "+60–80%"
-          };
-        }
-        if (cell.type === "Wind") {
-          return {
-            label: "High Wind Zone",
-            intensityLabel: i < 0.5 ? "Gusty" : "Strong",
-            visibility: "Normal",
-            speedImpact: "-10–20%",
-            incidentRisk: "+15–30%"
-          };
-        }
-        return {
-          label: "Weather Cell",
-          intensityLabel: "Unknown",
-          visibility: "N/A",
-          speedImpact: "N/A",
-          incidentRisk: "N/A"
-        };
-      },
-
-      render() {
-        weatherLayerGroup.clearLayers();
-        if (!weatherEnabled) return;
-
-        radarCells.forEach((cell) => {
-          const sizeMeters = 1200;
-          const color = this.colorForCell(cell);
-          const info = this.infoForCell(cell);
-
-          const rect = L.circle(cell.center, {
-            radius: sizeMeters,
-            color: color.border,
-            weight: 0,
-            fillColor: color.fill,
-            fillOpacity: color.opacity
-          });
-
-          rect.bindPopup(
-            `<div style="font-size:12px;">
-              <div style="font-weight:600;margin-bottom:4px;">${info.label}</div>
-              <div><strong>Type:</strong> ${cell.type}</div>
-              <div><strong>Intensity:</strong> ${info.intensityLabel}</div>
-              <div><strong>Visibility:</strong> ${info.visibility}</div>
-              <div><strong>Speed Impact:</strong> ${info.speedImpact}</div>
-              <div><strong>Incident Risk:</strong> ${info.incidentRisk}</div>
-            </div>`
-          );
-
-          weatherLayerGroup.addLayer(rect);
-        });
-      },
-
-      // Weather factor for a corridor: sample nearest radar cells
+      // Weather factor for corridor: sample along baseGeometry
       corridorWeatherFactor(corridorName) {
         const corridor = corridors.find((c) => c.name === corridorName);
-        if (!corridor || !weatherEnabled || radarCells.length === 0) return 1;
-
+        if (!corridor || !weatherEnabled) return 1;
         const samples = corridor.baseGeometry || [];
         if (!samples.length) return 1;
 
         let factor = 1;
         samples.forEach((pt) => {
-          radarCells.forEach((cell) => {
-            const distKm = haversineDistance(pt, cell.center) / 1000;
-            if (distKm < 5) {
-              const i = cell.intensity;
-              let local = 1;
-              if (cell.type === "Rain") local = 1 - 0.15 * i;
-              else if (cell.type === "Thunderstorm") local = 1 - 0.3 * i;
-              else if (cell.type === "Fog") local = 1 - 0.2 * i;
-              else if (cell.type === "Ice") local = 1 - 0.4 * i;
-              else if (cell.type === "Wind") local = 1 - 0.1 * i;
-              factor = Math.min(factor, local);
-            }
-          });
+          const dbz = this.reflectivityAtLatLng(pt[0], pt[1]);
+          if (dbz <= 0) return;
+          let local = 1;
+          if (dbz < 20) local = 0.9;
+          else if (dbz < 30) local = 0.8;
+          else if (dbz < 40) local = 0.7;
+          else if (dbz < 50) local = 0.6;
+          else local = 0.5;
+          factor = Math.min(factor, local);
         });
         return Math.max(0.4, factor);
       },
 
-      // Weather modifiers for incident type weights
       typeWeightModifiers() {
         const mods = {};
         ALERT_TYPES.forEach((t) => (mods[t] = 1));
-        if (!weatherEnabled || radarCells.length === 0) return mods;
+        if (!weatherEnabled || !map) return mods;
 
-        let rain = 0, storm = 0, fog = 0, ice = 0, wind = 0;
-        radarCells.forEach((cell) => {
-          if (cell.intensity < 0.3) return;
-          if (cell.type === "Rain") rain += cell.intensity;
-          if (cell.type === "Thunderstorm") storm += cell.intensity;
-          if (cell.type === "Fog") fog += cell.intensity;
-          if (cell.type === "Ice") ice += cell.intensity;
-          if (cell.type === "Wind") wind += cell.intensity;
+        // Sample a few points around center to estimate overall weather
+        const center = map.getCenter();
+        const offsets = [
+          [0, 0],
+          [0.02, 0],
+          [-0.02, 0],
+          [0, 0.02],
+          [0, -0.02]
+        ];
+        let avgDbz = 0;
+        let count = 0;
+        offsets.forEach((o) => {
+          const dbz = this.reflectivityAtLatLng(center.lat + o[0], center.lng + o[1]);
+          avgDbz += dbz;
+          count++;
         });
+        avgDbz /= Math.max(count, 1);
 
-        const scale = (x) => Math.min(2, 1 + x / 20);
+        if (avgDbz <= 0) return mods;
 
-        const rainF = scale(rain);
-        const stormF = scale(storm);
-        const fogF = scale(fog);
-        const iceF = scale(ice);
-        const windF = scale(wind);
+        const stormFactor = Math.max(1, (avgDbz + 5) / 20); // ~1..3
+        const heavyFactor = avgDbz > 35 ? (avgDbz - 35) / 15 + 1 : 1;
 
-        const crashBoost = Math.max(rainF, stormF, fogF, iceF);
-        const badRoadBoost = Math.max(rainF, iceF);
-        const debrisBoost = Math.max(stormF, windF);
-        const enforcementDrop = 1 / Math.max(1, stormF + iceF);
-
-        mods["Crash"] *= crashBoost;
-        mods["Severe Crash"] *= crashBoost * 1.1;
-        mods["Pile-up"] *= crashBoost * 1.1;
-        mods["Bad Road Condition"] *= badRoadBoost * 1.2;
-        mods["Debris"] *= debrisBoost * 1.2;
-        mods["Closure"] *= badRoadBoost * 1.1;
-        mods["Construction / Utility"] *= badRoadBoost;
-        mods["Speed Trap"] *= enforcementDrop;
-        mods["Traffic Stop"] *= enforcementDrop;
-        mods["Weather Alert"] *= Math.max(rainF, stormF, fogF, iceF, windF);
+        mods["Crash"] *= stormFactor;
+        mods["Severe Crash"] *= stormFactor * heavyFactor;
+        mods["Pile-up"] *= stormFactor * heavyFactor;
+        mods["Bad Road Condition"] *= stormFactor * 1.2;
+        mods["Debris"] *= stormFactor * 1.3;
+        mods["Closure"] *= heavyFactor * 1.2;
+        mods["Construction / Utility"] *= stormFactor;
+        mods["Speed Trap"] *= 1 / stormFactor;
+        mods["Traffic Stop"] *= 1 / stormFactor;
+        mods["Weather Alert"] *= stormFactor * 1.5;
 
         return mods;
       }
@@ -1211,7 +1152,7 @@
       updateAll() {
         corridors.forEach((c) => {
           const state = corridorState[c.name];
-          const wFactor = WeatherEngine.corridorWeatherFactor(c.name);
+          const wFactor = RadarEngine.corridorWeatherFactor(c.name);
           const incidentFactor = this.computeIncidentFactorForCorridor(c.name);
           const sim = this.simulateCorridor(c, wFactor, incidentFactor);
           const alpha = 0.3;
@@ -1314,7 +1255,7 @@
     function buildTypeWeightsForPOI(corridor, poi) {
       const weights = {};
       const todMods = timeOfDayModifiers();
-      const weatherMods = WeatherEngine.typeWeightModifiers();
+      const weatherMods = RadarEngine.typeWeightModifiers();
       const profile = corridor.incidentProfile || {
         crashRate: 1,
         enforcementRate: 1,
@@ -1407,7 +1348,7 @@
 
           if (Math.random() < probability) {
             const poi = pickPOIForAlert(c);
-            if (!poi) return;
+            if (!poi || !poi.coord) return;
 
             const type = pickAlertTypeForPOI(c, poi);
             const severity = severityFromType(type);
@@ -1465,7 +1406,7 @@
                 case "Police":
                   return "Police activity in corridor; expect intermittent slowdowns.";
                 case "Weather Alert":
-                  return "Weather radar indicates hazardous conditions impacting this corridor.";
+                  return "Radar indicates hazardous weather impacting this corridor.";
                 default:
                   return "Traffic disruption reported.";
               }
@@ -1481,7 +1422,7 @@
               remainingSec: durationMin * 60,
               departments,
               corridorName: c.name,
-              coord: poi.coord,
+              coord: [poi.coord[0], poi.coord[1]], // ensure [lat,lng] preserved
               locationName: poi.name,
               impactText,
               causeText,
@@ -1520,7 +1461,7 @@
     };
 
     /************************************************************
-     * MAP ENGINE (NO CORRIDOR LINES, ONLY RADAR + ALERT PINS)
+     * MAP ENGINE (NO LINES, ONLY RADAR + PINS)
      ************************************************************/
     const MapEngine = {
       init() {
@@ -1537,6 +1478,15 @@
 
         weatherLayerGroup = L.layerGroup().addTo(map);
         alertLayerGroup = L.layerGroup().addTo(map);
+
+        RadarEngine.init();
+        RadarEngine.resize();
+        RadarEngine.render();
+
+        map.on("moveend zoomend", () => {
+          RadarEngine.resize();
+          RadarEngine.render();
+        });
       },
 
       renderAlerts() {
@@ -1545,17 +1495,29 @@
 
         alerts.forEach((a) => {
           if (a.cleared) return;
-          if (!a.coord) return;
+          if (!a.coord || a.coord.length !== 2) return;
 
           const hasActiveDept = a.departments.some((d) => ACTIVE_DEPARTMENTS.has(d));
           if (!hasActiveDept) return;
 
-          const marker = L.circleMarker(a.coord, {
-            radius: 7,
-            color: a.color,
-            weight: 2,
-            fillColor: a.color,
-            fillOpacity: 0.85
+          // Ensure we never swap lat/lng
+          const lat = a.coord[0];
+          const lng = a.coord[1];
+
+          const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+              className: "custom-alert-pin",
+              html: `<div style="
+                width:14px;
+                height:14px;
+                border-radius:999px;
+                background:${a.color};
+                box-shadow:0 0 10px ${a.color};
+                border:2px solid #020617;
+              "></div>`,
+              iconSize: [14, 14],
+              iconAnchor: [7, 7]
+            })
           });
 
           marker.bindPopup(
@@ -1700,13 +1662,11 @@
         if (weatherEnabled) {
           btn.classList.add("active");
           btn.innerHTML = `<span class="dot"></span> Radar On`;
-          WeatherEngine.generateCells();
         } else {
           btn.classList.remove("active");
           btn.innerHTML = `<span class="dot"></span> Radar Off`;
-          radarCells = [];
         }
-        WeatherEngine.render();
+        RadarEngine.render();
       });
     }
 
@@ -1804,12 +1764,12 @@
      * SIMULATION LOOP
      ************************************************************/
     function tickSimulation() {
-      WeatherEngine.updateCells();
+      RadarEngine.updateTime(SIM_TICK_SECONDS / 60); // slow drift
       TrafficEngine.updateAll();
       IncidentEngine.generateNewIncidents();
       IncidentEngine.updateLifecycles();
 
-      WeatherEngine.render();
+      RadarEngine.render();
       MapEngine.renderAlerts();
       renderReportsList();
       updateCorridorChart();
@@ -1818,8 +1778,6 @@
     }
 
     function startSimulation() {
-      WeatherEngine.generateCells();
-      WeatherEngine.render();
       TrafficEngine.initState();
       TrafficEngine.updateAll();
 
@@ -1847,6 +1805,11 @@
       initWeatherToggle();
       initCorridorSelectAndChart();
       startSimulation();
+    });
+
+    window.addEventListener("resize", () => {
+      RadarEngine.resize();
+      RadarEngine.render();
     });
   </script>
 </body>
